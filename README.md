@@ -2,7 +2,7 @@
   <img width="120" height="120" alt="AppIcon" src="http://devrepo.victorlobe.me/packageIcons/iCloudMailFixIcon.png" />
 </p>
 
-<h1 align="center">iCloudMailFix</h1>
+<h1 align="center">iCloudMailFix (Coming Soon)</h1>
 
 <p align="center">
   A jailbreak tweak that enables iCloud Mail functionality on iOS 6 and older devices by implementing a local TLS proxy.
