@@ -35,7 +35,7 @@ iOS 6 Mail App (Plaintext) ↔ Local Proxy (127.0.0.1) ↔ iCloud Servers (TLS)
 
 ## ✨ Features
 
--  **Restores full functionality of Mail.app
+-  **Restores full functionality of Mail.app**
 -  **IMAP Support**: `imap.mail.me.com:993` → `127.0.0.1:143`
 -  **SMTP Support**: `smtp.mail.me.com:587` → `127.0.0.1:587`
 -  **Automatic Startup**: Runs as a LaunchDaemon
