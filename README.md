@@ -72,15 +72,18 @@ To add a manual iCloud Mail account:
 2. Tap **Add Account**
 3. Select **Other**
 4. Choose **Add Mail Account**
-5. Enter your iCloud email and password
+5. Enter your full **iCloud email** and **App Specific Password**
+
 6. For **Incoming Mail Server**:
    - Host Name: `imap.mail.me.com`
-   - Username: The name part of your mail address e.g. Tim.cook@icloud.com -> Tim.cook
-   - Password: Your App Specific Password
+   - Username: The **name part** of your mail address e.g. Tim.cook@icloud.com -> **Tim.cook**
+   - Password: **Your App Specific Password**
+   
 7. For **Outgoing Mail Server**:
    - Host Name: `smtp.mail.me.com`
-   - Username: Your full iCloud email e.g. Tim.cook@icloud.com
-   - Password: Your App Specific Password
+   - Username: Your full iCloud email e.g. **Tim.cook@icloud.com**
+   - Password: **Your App Specific Password**
+   
 8. Tap **Save**
 
 **Note**: Support for the default iCloud Mail account will be added in a future update.
