@@ -5,7 +5,7 @@
 <h1 align="center">iCloudMailFix</h1>
 
 <p align="center">
-  A jailbreak tweak that enables iCloud Mail functionality on iOS 6 and older devices by implementing a local TLS proxy.
+  A jailbreak tweak that fixes iCloud Mail functionality on iOS 6 and older devices by implementing a local TLS proxy.
 </p>
 
 <p align="center">
