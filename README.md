@@ -20,7 +20,7 @@
 
 ## Overview
 
-iOS 6 (released in 2012) is no longer compatible with modern iCloud Mail servers due to outdated TLS protocols. This tweak solves this problem by:
+iOS 6 is no longer compatible with modern iCloud Mail servers due to outdated TLS protocols. This tweak solves this problem by:
 
 1. **Intercepting** Mail app connections to iCloud servers
 2. **Redirecting** them to a local proxy running on `127.0.0.1`
@@ -30,9 +30,8 @@ iOS 6 (released in 2012) is no longer compatible with modern iCloud Mail servers
 ## 🔨 Architecture
 armv7 + arm64
 
-```
 iOS 6 Mail App (Plaintext) ↔ Local Proxy (127.0.0.1) ↔ iCloud Servers (TLS)
-```
+
 
 ## ✨ Features
 
