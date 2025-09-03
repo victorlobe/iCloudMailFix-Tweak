@@ -84,6 +84,7 @@ To add a manual iCloud Mail account:
    - Password: **Your App Specific Password**
    
 8. Tap **Save**
+9. You may see an alert asking if you want to set it up without SSL, **tap Yes**. You might also get an error message during setup, just **tap Continue** and finish adding the account. It will work regardless.
 
 **Note**: Support for the default iCloud Mail account will be added in a future update.
 
