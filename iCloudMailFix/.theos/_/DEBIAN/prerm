@@ -1,0 +1,17 @@
+#!/bin/sh
+set -e
+LOG="/var/log/iCloudMailFixd.pkg.log"
+PLIST="/Library/LaunchDaemons/com.victorlobe.iCloudMailFix.plist"
+PIDFILE="/var/run/iCloudMailFixd.pid"
+
+echo "[`date '+%F %T'`] prerm: stopping service…" >> "$LOG" 2>&1
+
+# Unload (nicht hängen, Fehler ignorieren)
+if [ -f "$PLIST" ]; then
+  /bin/launchctl unload "$PLIST" >> "$LOG" 2>&1 || true
+fi
+
+# Altes PID-Lock entfernen, damit neue Version starten kann
+[ -f "$PIDFILE" ] && rm -f "$PIDFILE"
+
+exit 0

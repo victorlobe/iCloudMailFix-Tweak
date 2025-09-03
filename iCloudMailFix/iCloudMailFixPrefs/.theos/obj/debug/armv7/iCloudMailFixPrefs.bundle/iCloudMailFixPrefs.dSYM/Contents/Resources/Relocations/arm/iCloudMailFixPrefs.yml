@@ -1,0 +1,12 @@
+---
+triple:          'armv7-apple-darwin'
+binary-path:     '/Users/victor/Documents/Tweaks/iCloudMailFix/iCloudMailFixPrefs/.theos/obj/debug/armv7/iCloudMailFixPrefs.bundle/iCloudMailFixPrefs'
+relocations:
+  - { offset: 0x1E, size: 0x4, addend: 0x0, symName: '-[ICMRootListController specifiers]', symObjAddr: 0x0, symBinAddr: 0x2EC4, symSize: 0x80 }
+  - { offset: 0x5DF2, size: 0x4, addend: 0x0, symName: '-[ICMRootListController specifiers]', symObjAddr: 0x0, symBinAddr: 0x2EC4, symSize: 0x80 }
+  - { offset: 0x5DF6, size: 0x4, addend: 0x0, symName: '-[ICMRootListController tableView:cellForRowAtIndexPath:]', symObjAddr: 0x80, symBinAddr: 0x2F44, symSize: 0x4E0 }
+  - { offset: 0x5E56, size: 0x4, addend: 0x0, symName: '-[ICMRootListController tableView:cellForRowAtIndexPath:]', symObjAddr: 0x80, symBinAddr: 0x2F44, symSize: 0x4E0 }
+  - { offset: 0x5F6D, size: 0x4, addend: 0x0, symName: '-[ICMRootListController tableView:heightForRowAtIndexPath:]', symObjAddr: 0x560, symBinAddr: 0x3424, symSize: 0x1AC }
+  - { offset: 0x5F71, size: 0x4, addend: 0x0, symName: _CGSizeMake, symObjAddr: 0x70C, symBinAddr: 0x35D0, symSize: 0x26 }
+  - { offset: 0x5FF8, size: 0x4, addend: 0x0, symName: _CGSizeMake, symObjAddr: 0x70C, symBinAddr: 0x35D0, symSize: 0x26 }
+...

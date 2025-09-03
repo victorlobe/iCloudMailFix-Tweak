@@ -1,0 +1,27 @@
+---
+triple:          'armv7-apple-darwin'
+binary-path:     '/Users/victor/Documents/Tweaks/iCloudMailFix/.theos/obj/armv7/iCloudMailFix.dylib'
+relocations:
+  - { offset: 0x1E, size: 0x4, addend: 0x0, symName: __ZL9icmf_ctorv, symObjAddr: 0x0, symBinAddr: 0x7288, symSize: 0x56 }
+  - { offset: 0x46, size: 0x4, addend: 0x0, symName: __ZL13gNoSSLStreams, symObjAddr: 0x376C, symBinAddr: 0x8138, symSize: 0x0 }
+  - { offset: 0x76, size: 0x4, addend: 0x0, symName: __ZL16orig_getaddrinfo, symObjAddr: 0x3770, symBinAddr: 0x813C, symSize: 0x0 }
+  - { offset: 0x1D2, size: 0x4, addend: 0x0, symName: __ZL39orig_CFStreamCreatePairWithSocketToHost, symObjAddr: 0x3774, symBinAddr: 0x8140, symSize: 0x0 }
+  - { offset: 0x292, size: 0x4, addend: 0x0, symName: __ZL28orig_CFReadStreamSetProperty, symObjAddr: 0x3778, symBinAddr: 0x8144, symSize: 0x0 }
+  - { offset: 0x2EA, size: 0x4, addend: 0x0, symName: __ZL29orig_CFWriteStreamSetProperty, symObjAddr: 0x377C, symBinAddr: 0x8148, symSize: 0x0 }
+  - { offset: 0x3F3, size: 0x4, addend: 0x0, symName: __ZL9icmf_ctorv, symObjAddr: 0x0, symBinAddr: 0x7288, symSize: 0x56 }
+  - { offset: 0x3F7, size: 0x4, addend: 0x0, symName: __ZL9write_logPKcz, symObjAddr: 0x56, symBinAddr: 0x72DE, symSize: 0x52 }
+  - { offset: 0x408, size: 0x4, addend: 0x0, symName: __ZL9write_logPKcz, symObjAddr: 0x56, symBinAddr: 0x72DE, symSize: 0x52 }
+  - { offset: 0x40C, size: 0x4, addend: 0x0, symName: __ZL18icloudmailfix_initv, symObjAddr: 0xA8, symBinAddr: 0x7330, symSize: 0x134 }
+  - { offset: 0x44B, size: 0x4, addend: 0x0, symName: __ZL18icloudmailfix_initv, symObjAddr: 0xA8, symBinAddr: 0x7330, symSize: 0x134 }
+  - { offset: 0x44F, size: 0x4, addend: 0x0, symName: __ZL18hooked_getaddrinfoPKcS0_PK8addrinfoPPS1_, symObjAddr: 0x1DC, symBinAddr: 0x7464, symSize: 0x216 }
+  - { offset: 0x673, size: 0x4, addend: 0x0, symName: __ZL18hooked_getaddrinfoPKcS0_PK8addrinfoPPS1_, symObjAddr: 0x1DC, symBinAddr: 0x7464, symSize: 0x216 }
+  - { offset: 0x677, size: 0x4, addend: 0x0, symName: __ZL41hooked_CFStreamCreatePairWithSocketToHostPK13__CFAllocatorPK10__CFStringmPP14__CFReadStreamPP15__CFWriteStream, symObjAddr: 0x3F2, symBinAddr: 0x767A, symSize: 0x11C }
+  - { offset: 0x7D0, size: 0x4, addend: 0x0, symName: __ZL41hooked_CFStreamCreatePairWithSocketToHostPK13__CFAllocatorPK10__CFStringmPP14__CFReadStreamPP15__CFWriteStream, symObjAddr: 0x3F2, symBinAddr: 0x767A, symSize: 0x11C }
+  - { offset: 0x88B, size: 0x4, addend: 0x0, symName: __ZL41hooked_CFStreamCreatePairWithSocketToHostPK13__CFAllocatorPK10__CFStringmPP14__CFReadStreamPP15__CFWriteStream, symObjAddr: 0x3F2, symBinAddr: 0x767A, symSize: 0x11C }
+  - { offset: 0x88F, size: 0x4, addend: 0x0, symName: __ZL30hooked_CFReadStreamSetPropertyP14__CFReadStreamPK10__CFStringPKv, symObjAddr: 0x50E, symBinAddr: 0x7796, symSize: 0x54 }
+  - { offset: 0x95F, size: 0x4, addend: 0x0, symName: __ZL30hooked_CFReadStreamSetPropertyP14__CFReadStreamPK10__CFStringPKv, symObjAddr: 0x50E, symBinAddr: 0x7796, symSize: 0x54 }
+  - { offset: 0x963, size: 0x4, addend: 0x0, symName: __ZL31hooked_CFWriteStreamSetPropertyP15__CFWriteStreamPK10__CFStringPKv, symObjAddr: 0x562, symBinAddr: 0x77EA, symSize: 0x54 }
+  - { offset: 0x9A6, size: 0x4, addend: 0x0, symName: __ZL31hooked_CFWriteStreamSetPropertyP15__CFWriteStreamPK10__CFStringPKv, symObjAddr: 0x562, symBinAddr: 0x77EA, symSize: 0x54 }
+  - { offset: 0x9AA, size: 0x4, addend: 0x0, symName: __ZL13isSSLPropertyPK10__CFString, symObjAddr: 0x5B6, symBinAddr: 0x783E, symSize: 0xA6 }
+  - { offset: 0x9ED, size: 0x4, addend: 0x0, symName: __ZL13isSSLPropertyPK10__CFString, symObjAddr: 0x5B6, symBinAddr: 0x783E, symSize: 0xA6 }
+...

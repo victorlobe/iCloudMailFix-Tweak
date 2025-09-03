@@ -1,0 +1,35 @@
+#!/bin/sh
+set -e
+LOG="/var/log/iCloudMailFixd.pkg.log"
+PLIST="/Library/LaunchDaemons/com.victorlobe.iCloudMailFix.plist"
+BIN="/usr/libexec/iCloudMailFixd"
+
+echo "[`date '+%F %T'`] postinst: configuring…" >> "$LOG" 2>&1
+
+# Korrekte Rechte/Eigentümer sicherstellen (wichtig für launchd)
+if [ -f "$PLIST" ]; then
+  /usr/sbin/chown root:wheel "$PLIST" || true
+  /bin/chmod 0644 "$PLIST" || true
+fi
+if [ -f "$BIN" ]; then
+  /usr/sbin/chown root:wheel "$BIN" || true
+  /bin/chmod 0755 "$BIN" || true
+fi
+
+# (Re)Load
+if [ -f "$PLIST" ]; then
+  /bin/launchctl unload "$PLIST" >> "$LOG" 2>&1 || true
+  /bin/launchctl load "$PLIST"  >> "$LOG" 2>&1 || true
+fi
+
+# Kurzer Self-Test: läuft und lauscht?
+/bin/sleep 1
+if /bin/launchctl list | /bin/grep -q "com.victorlobe.iCloudMailFix"; then
+  echo "[`date '+%F %T'`] postinst: launchctl list OK" >> "$LOG" 2>&1
+else
+  echo "[`date '+%F %T'`] postinst: launchctl list MISSING" >> "$LOG" 2>&1
+fi
+
+# Hinweis, wo Logs liegen
+echo "[`date '+%F %T'`] postinst: done. See /var/log/iCloudMailFixd.err and $LOG" >> "$LOG" 2>&1
+exit 0
