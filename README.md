@@ -46,7 +46,7 @@ iOS 6 Mail App (Plaintext) ↔ Local Proxy (127.0.0.1) ↔ iCloud Servers (TLS)
 ## 🧰 Requirements
 
 - **iOS Version**: iOS 6.0 or later
-- **Dependencies**: mobilesubstrate
+- **Dependencies**: mobilesubstrate, PreferenceLoader
 
 ## 🚀 Installation
 
