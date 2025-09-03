@@ -28,6 +28,7 @@ iOS 6 (released in 2012) is no longer compatible with modern iCloud Mail servers
 4. **Proxying** data between the Mail app (plaintext) and iCloud (TLS)
 
 ## 🔨 Architecture
+armv7 + arm64
 
 ```
 iOS 6 Mail App (Plaintext) ↔ Local Proxy (127.0.0.1) ↔ iCloud Servers (TLS)
@@ -41,7 +42,7 @@ iOS 6 Mail App (Plaintext) ↔ Local Proxy (127.0.0.1) ↔ iCloud Servers (TLS)
 -  **Automatic Startup**: Runs as a LaunchDaemon
 -  **Transparent Proxy**: No configuration required
 -  **Modern TLS**: Uses mbedTLS for secure connections
-- ⚠️ **Manual Account Only**: Currently only works with manually added iCloud Mail accounts
+- ⚠️ **Manual Account Only**: Currently only works with manually added iCloud Mail accounts (will be fixed in a later version)
 
 ## 🧰 Requirements
 
@@ -196,8 +197,8 @@ rm /var/log/iCloudMailFix-hook.log
 
 ## 🗒️ To Do
 
-- [ ] **Default iCloud Account Support**: Enable the tweak to work with the default iCloud Mail account from Settings
-- [ ] **Settings Bundle**: Add a settings panel for advanced options
+- [ ] **Default iCloud Account Support**:
+- [ ] **Add some settings**:
 
 **Note**: Features are prioritized based on user feedback and technical feasibility.
 
