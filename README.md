@@ -79,12 +79,6 @@ iOS 6 is no longer compatible with modern iCloud Mail servers due to outdated TL
 
 **Note**: This tweak currently only works with manually added iCloud Mail accounts. The default iCloud Mail account from Settings → iCloud → Mail will not work. Support for the default iCloud Mail account will be added in a future update.
 
-## 🔨 Architecture
-armv7 + arm64
-
-iOS 6 Mail App (Plaintext) ↔ Local Proxy (127.0.0.1) ↔ iCloud Servers (TLS)
-
-
 ## ✨ Features
 
 -  **Restores full functionality of Mail.app**
@@ -122,6 +116,11 @@ iOS 6 Mail App (Plaintext) ↔ Local Proxy (127.0.0.1) ↔ iCloud Servers (TLS)
 - Manual iCloud Mail account support only
 
 # 🔧 Technical Details
+
+### 🔨 Architecture
+armv7 + arm64
+
+iOS 6 Mail App (Plaintext) ↔ Local Proxy (127.0.0.1) ↔ iCloud Servers (TLS)
 
 ## 🧠 Behind the Scenes
 
