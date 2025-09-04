@@ -1,6 +1,7 @@
 ARCHS = armv7 arm64
 TARGET := iphone:7.1
 
+MAKEFLAGS += --output-sync=none
 include $(THEOS)/makefiles/common.mk
 
 # ---- Tweak (DNS redirect) ----
@@ -25,49 +26,76 @@ iCloudMailFixd_CFLAGS += -I$(MBEDTLS_DIR)/include -DMBEDTLS_CONFIG_FILE='<mbedtl
 include $(THEOS_MAKE_PATH)/tool.mk
 
 after-stage::
-	# LaunchDaemon
+	@echo "→ Installing LaunchDaemon plist…"
 	$(ECHO_NOTHING)mkdir -p $(THEOS_STAGING_DIR)/Library/LaunchDaemons$(ECHO_END)
 	$(ECHO_NOTHING)cp layout/Library/LaunchDaemons/com.victorlobe.iCloudMailFix.plist $(THEOS_STAGING_DIR)/Library/LaunchDaemons/$(ECHO_END)
 
-	# DEBIAN maintainer scripts
+	@echo "→ Installing DEBIAN maintainer scripts…"
 	$(ECHO_NOTHING)mkdir -p $(THEOS_STAGING_DIR)/DEBIAN$(ECHO_END)
 	$(ECHO_NOTHING)cp postinst $(THEOS_STAGING_DIR)/DEBIAN/postinst$(ECHO_END)
 	$(ECHO_NOTHING)cp prerm   $(THEOS_STAGING_DIR)/DEBIAN/prerm$(ECHO_END)
 	$(ECHO_NOTHING)chmod 755 $(THEOS_STAGING_DIR)/DEBIAN/postinst $(THEOS_STAGING_DIR)/DEBIAN/prerm$(ECHO_END)
-	
-after-package::
-	@if [ "$(RELEASE_MODE)" = "1" ]; then \
-		echo "[🚀] Release build - skipping dev pipeline"; \
-	else \
-		echo "[📦] Running deployment pipeline..."; \
+
+# ------------------------------- PACKAGE PIPELINES -------------------------------
+# Do NOT indent the ifeq/else/endif — they must be at top level.
+# Force sequential execution to avoid grouped/buffered output on older make.
+.NOTPARALLEL: after-stage after-package dev-pipeline release-pipeline
+MAKEFLAGS += -j1
+
+ifeq ($(FINALPACKAGE),)
+after-package:: dev-pipeline
+else
+after-package:: release-pipeline
+endif
+
+.PHONY: dev-pipeline release-pipeline
+
+dev-pipeline:
+	# Mirror progress to stderr (unbuffered) so you see something even if stdout is grouped.
+	@echo "[📌] Starting Build on DEV Pipeline" 1>&2
+	# Run everything under a PTY so child tools line-buffer their output.
+	@script -q /dev/null /bin/bash -lc 'set -euo pipefail; \
+		echo "[ℹ️ ] Locating latest .deb…"; \
 		DEB="$$(ls -t "$(THEOS_PACKAGE_DIR)"/*.deb | head -1)"; \
 		if [ -z "$$DEB" ] || [ ! -f "$$DEB" ]; then echo "[❌] No .deb found in $(THEOS_PACKAGE_DIR)"; exit 1; fi; \
-		echo "[ℹ️ ] Found latest package: $$DEB"; \
-		BASE="$$(basename "$$DEB" .deb)"; \
-		TMP="$${BASE#*_}"; \
-		VERSION="$${TMP%_*}"; \
-		echo "[ℹ️ ] Extracted version: $$VERSION"; \
-		echo "[📦] Creating git commit..."; \
+		echo "[ℹ️ ] Found: $$DEB"; \
+		BASE="$$(basename "$$DEB" .deb)"; TMP="$${BASE#*_}"; VERSION="$${TMP%_*}"; \
+		echo "[ℹ️ ] Version: $$VERSION"; \
+		echo "[📦] Git commit…"; \
 		git add -A; \
-		if git commit -m "Build $$VERSION"; then echo "[✅] Commit successful: Build $$VERSION"; else echo "[⚠️ ] Nothing to commit"; fi; \
+		if git commit -m "Build $$VERSION"; then echo "[✅] Commit successful"; else echo "[⚠️ ] Nothing to commit"; fi; \
 		DEST="/Volumes/victor/Sites/repo-dev/debs"; \
-		echo "[📂] Copying $$DEB to $$DEST..."; \
-		mkdir -p "$$DEST"; cp -v "$$DEB" "$$DEST/"; echo "[✅] Copied successfully"; \
-		echo "[⚙️ ] Running Update.sh in /Volumes/victor/Sites/repo-dev..."; \
+		echo "[📂] Copy .deb → $$DEST"; \
+		mkdir -p "$$DEST"; cp -v "$$DEB" "$$DEST/"; \
+		echo "[⚙️ ] Run repo update…"; \
 		cd /Volumes/victor/Sites/repo-dev; \
-		if [ -x ./Update.sh ]; then ./Update.sh; elif [ -f ./Update.sh ]; then /bin/bash ./Update.sh; else echo "[⚠️ ] Warning: Update.sh not found"; fi; \
-		echo "[✅] Update.sh finished"; \
-		MSG="Built $$VERSION and updated repo"; echo "[🔔] macOS notification: $$MSG"; \
+		if [ -x ./Update.sh ]; then ./Update.sh; \
+		elif [ -x ./update.sh ]; then ./update.sh; \
+		elif [ -f ./Update.sh ]; then /bin/bash ./Update.sh; \
+		elif [ -f ./update.sh ]; then /bin/bash ./update.sh; \
+		else echo "[⚠️ ] Warning: update script not found"; fi; \
+		echo "[✅] Repo update finished"; \
+		MSG="Built $$VERSION and updated repo"; \
+		echo "[🔔] Notifying macOS…"; \
 		/usr/bin/osascript -e "display notification \"$$MSG\" with title \"iCloudMailFix Build\" subtitle \"Deployment complete\"" \
-		&& echo "[✅] Notification sent" || echo "[⚠️ ] Could not display notification"; \
-	fi
+		&& echo "[✅] Notification sent" || echo "[⚠️ ] Could not display notification"'
 
-# ---- Release target (no dev pipeline) ----
-release::
-	@echo "[🚀] Building release version..."
-	@$(MAKE) package RELEASE_MODE=1
-	@echo "[✅] Release package built successfully"
-	@echo "[📦] Package location: $(THEOS_PACKAGE_DIR)"
-	@echo "[📋] Manual deployment required"
+release-pipeline:
+	@echo "[📌] Starting Build on RELEASE Pipeline" 1>&2
+	@script -q /dev/null /bin/bash -lc 'set -euo pipefail; \
+	DEB="$$(ls -t "$(THEOS_PACKAGE_DIR)"/*.deb | head -1)"; \
+	if [ -z "$$DEB" ] || [ ! -f "$$DEB" ]; then echo "[❌] No .deb found in $(THEOS_PACKAGE_DIR)"; exit 1; fi; \
+	BASE="$$(basename "$$DEB" .deb)"; TMP="$${BASE#*_}"; VER="$${TMP%_*}"; \
+	echo "[🚀 RELEASE] Built $$DEB (Version: $$VER)"; \
+	echo "[ℹ️ ] (Release mode: no deploy; just committing)"; \
+	git add -A || true; \
+	if git commit -m "Release $$VER"; then \
+		echo "[✅] Git commit: Release $$VER"; \
+	else \
+		echo "[⚠️ ] Nothing to commit"; \
+	fi;'
+	
+	
+	
 SUBPROJECTS += iCloudMailFixPrefs
 include $(THEOS_MAKE_PATH)/aggregate.mk

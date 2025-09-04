@@ -8,7 +8,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Tutorial</string>
+			<string>Instructions</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -16,16 +16,15 @@
 			<key>isStaticText</key>
 			<true/>
 			<key>footerText</key>
-			<string>Account Setup
-
-Important: This tweak currently only works with manually added iCloud Mail accounts. The default iCloud Mail account from Settings → iCloud → Mail will not work.
-
-To add a manual iCloud Mail account:
-
+			<string>
 1. Open Settings → Mail, Contacts, Calendars
+
 2. Tap Add Account
+
 3. Select Other
+
 4. Choose Add Mail Account
+
 5. Enter your iCloud email and App Specific Password
 
 6. For Incoming Mail Server:
@@ -40,7 +39,14 @@ To add a manual iCloud Mail account:
    
 8. Tap Save
 
-Note: Support for the default iCloud Mail account will be added in a future update.</string>
+9: It might take a while. Be patient. When asked if you want to set up the account without SSL, select “No SSL.” After that, an error will appear — this is normal. Just tap “Continue.”
+
+10. Done
+
+
+Note: This tweak currently only works with manually added iCloud Mail accounts. The default iCloud Mail account from Settings → iCloud → Mail will not work. Support for the default iCloud Mail account will be added in a future update.
+
+</string>
 		</dict>
 		<dict>
 			<key>cell</key>

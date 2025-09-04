@@ -1,6 +1,6 @@
 Package: com.victorlobe.icloudmailfix
 Name: iCloudMailFix
-Description: Restores full iCloud Mail functionality on iOS 6 and later devices. This tweak fixes the compatibility issue with modern iCloud servers by creating a local proxy that handles the connections. See Settings > iCloud Mail Fix for setup tutorial.
+Description: Restores full iCloud Mail functionality on iOS 6 and later devices. This tweak fixes the compatibility issue with modern iCloud servers by creating a local proxy that handles the connections. See Settings > iCloud Mail Fix for setup instructions.
 Maintainer: Victor <victor@victorlobe.me>
 Author: Victor <victor@victorlobe.me>
 Section: Tweaks
@@ -8,5 +8,5 @@ Depends: mobilesubstrate, PreferenceLoader, firmware (>= 6.0)
 Priority: optional
 Compatibility: iOS 6.0+
 Architecture: iphoneos-arm
-Version: 1.0.0
-Installed-Size: 1416
+Version: 1.0.1
+Installed-Size: 1512

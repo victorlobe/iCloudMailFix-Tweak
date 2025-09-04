@@ -1,0 +1,7 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     '/Users/victor/Documents/Tweaks/iCloudMailFix/.theos/obj/arm64/iCloudMailFixPrefs.bundle/iCloudMailFixPrefs'
+relocations:
+  - { offset: 0x1E, size: 0x8, addend: 0x0, symName: '-[ICMRootListController specifiers]', symObjAddr: 0x0, symBinAddr: 0x4000, symSize: 0x60 }
+  - { offset: 0x32F1, size: 0x8, addend: 0x0, symName: '-[ICMRootListController specifiers]', symObjAddr: 0x0, symBinAddr: 0x4000, symSize: 0x60 }
+...
