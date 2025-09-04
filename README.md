@@ -18,7 +18,29 @@
 
 ---
 
-## Overview
+## 📋 Table of Contents
+
+- [Overview](#-overview)
+- [Quick Start](#-quick-start)
+- [Architecture](#-architecture)
+- [Features](#-features)
+- [Requirements](#-requirements)
+- [Installation](#-installation)
+- [Setup](#-setup)
+- [Version History](#-version-history)
+- [Technical Details](#-technical-details)
+- [Security Notes](#-security-notes)
+- [Logs and Debugging](#-logs-and-debugging)
+- [Troubleshooting](#-troubleshooting)
+- [Uninstallation](#-uninstallation)
+- [To Do](#-to-do)
+- [Author](#-author)
+- [License](#-license)
+- [Disclaimer](#-disclaimer)
+
+---
+
+## 📖 Overview
 
 iOS 6 is no longer compatible with modern iCloud Mail servers due to outdated TLS protocols. This tweak solves this problem by:
 
@@ -27,42 +49,13 @@ iOS 6 is no longer compatible with modern iCloud Mail servers due to outdated TL
 3. **Establishing** modern TLS connections to iCloud servers
 4. **Proxying** data between the Mail app (plaintext) and iCloud (TLS)
 
-## 🔨 Architecture
-armv7 + arm64
+## 🚀 Quick Start
 
-iOS 6 Mail App (Plaintext) ↔ Local Proxy (127.0.0.1) ↔ iCloud Servers (TLS)
+1. **Install** the tweak from `repo.victorlobe.me`
+2. **Add** your iCloud Mail account manually in Settings → Mail, Contacts, Calendars (See Settings -> iCloud Mail Fix for instructions)
+3. **Enjoy** working Mail app on iOS 6!
 
-
-## ✨ Features
-
--  **Restores full functionality of Mail.app**
--  **IMAP Support**: `imap.mail.me.com:993` → `127.0.0.1:143`
--  **SMTP Support**: `smtp.mail.me.com:587` → `127.0.0.1:587`
--  **Automatic Startup**: Runs as a LaunchDaemon
--  **Modern TLS**: Uses mbedTLS for secure connections
-- ⚠️ **Manual Account Only**: Currently only works with manually added iCloud Mail accounts (will be fixed in a later version)
-
-## 🧰 Requirements
-
-- **iOS Version**: iOS 6.0 or later
-- **Dependencies**: mobilesubstrate, PreferenceLoader
-
-## 🚀 Installation
-
-### From Repository
-
-1. Add the repository `repo.victorlobe.me` to Cydia
-2. Search for "iCloudMailFix"
-3. Install the package
-4. Respring your device
-
-### Manual Installation
-
-1. Download the `.deb` file
-2. Install using `dpkg -i iCloudMailFix.deb`
-3. Respring your device
-
-## 📲 Setup
+## ⚙️ Setup
 
 1. Open **Settings** → **Mail, Contacts, Calendars**
 2. Tap **Add Account**
@@ -86,8 +79,36 @@ iOS 6 Mail App (Plaintext) ↔ Local Proxy (127.0.0.1) ↔ iCloud Servers (TLS)
 
 **Note**: This tweak currently only works with manually added iCloud Mail accounts. The default iCloud Mail account from Settings → iCloud → Mail will not work. Support for the default iCloud Mail account will be added in a future update.
 
+## 🔨 Architecture
+armv7 + arm64
 
-# Version History
+iOS 6 Mail App (Plaintext) ↔ Local Proxy (127.0.0.1) ↔ iCloud Servers (TLS)
+
+
+## ✨ Features
+
+-  **Restores full functionality of Mail.app**
+-  **IMAP Support**: `imap.mail.me.com:993` → `127.0.0.1:143`
+-  **SMTP Support**: `smtp.mail.me.com:587` → `127.0.0.1:587`
+-  **Automatic Startup**: Runs as a LaunchDaemon
+-  **Modern TLS**: Uses mbedTLS for secure connections
+- ⚠️ **Manual Account Only**: Currently only works with manually added iCloud Mail accounts (will be fixed in a later version)
+
+## 📋 Requirements
+
+- **iOS Version**: iOS 6.0 or later
+- **Dependencies**: mobilesubstrate, PreferenceLoader
+
+## 📦 Installation
+
+### From Repository
+
+1. Add the repository `repo.victorlobe.me` to Cydia
+2. Search for "iCloudMailFix"
+3. Install the package
+4. Respring your device
+
+# 📝 Version History
 
 ### v1.0.1
 - Fixed the preference bundle on arm64 devices
@@ -100,7 +121,7 @@ iOS 6 Mail App (Plaintext) ↔ Local Proxy (127.0.0.1) ↔ iCloud Servers (TLS)
 - Automatic startup via LaunchDaemon
 - Manual iCloud Mail account support only
 
-# Technical Stuff
+# 🔧 Technical Details
 
 ## 🧠 Behind the Scenes
 
@@ -117,13 +138,10 @@ iOS 6 Mail App (Plaintext) ↔ Local Proxy (127.0.0.1) ↔ iCloud Servers (TLS)
 ## 🛑 Security Notes
 
 ### What This Tweak Does NOT Do
-- ❌ **Read or store passwords** - Passwords are never processed or logged
-- ❌ **Access external networks** - Only connects to localhost and iCloud
-- ❌ **Modify email content** - Data is proxied transparently
-- ❌ **Log sensitive data** - Only connection metadata is logged (and stays on your device)
+- ❌ **Access sensitive data** - Passwords are never processed, stored, or logged. Only connection metadata is logged locally.
 
 ### Security Considerations
-- ⚠️ **TLS Validation**: Uses `MBEDTLS_SSL_VERIFY_OPTIONAL` for iOS 6 compatibility which is not secure but should be fine in your home network
+- ⚠️ **TLS Validation**: Uses `MBEDTLS_SSL_VERIFY_OPTIONAL` for iOS 6 compatibility. While this reduces security, the risk is minimal for normal users since attacks are extremely unlikely in practice. Use your own hotspot in public places for extra safety.
 
 ### TLS Security
 The tweak uses `MBEDTLS_SSL_VERIFY_OPTIONAL` instead of `REQUIRED` because:
@@ -132,7 +150,7 @@ The tweak uses `MBEDTLS_SSL_VERIFY_OPTIONAL` instead of `REQUIRED` because:
 - The local proxy + TLS to iCloud provides adequate security
 - Functionality is prioritized over strict certificate validation
 
-## 📸 Logs and Debugging
+## 📊 Logs and Debugging
 
 ### Log Files
 - **Daemon Logs (Main Log)**: `/var/log/iCloudMailFixd.err`
@@ -163,29 +181,11 @@ The tweak uses `MBEDTLS_SSL_VERIFY_OPTIONAL` instead of `REQUIRED` because:
 - **Firewall**: Check if any firewall is blocking localhost connections (unlikely)
 - **Network**: Verify internet connectivity for iCloud server connections (obviously)
 
-## Uninstallation
-
-### From Cydia
+## 🗑️ Uninstallation
 1. Remove the package through Cydia
 2. Respring your device
 
-### Manual Removal
-```bash
-# Stop the daemon
-launchctl unload /Library/LaunchDaemons/com.victorlobe.iCloudMailFix.plist
-
-# Remove files
-rm /usr/libexec/iCloudMailFixd
-rm /Library/LaunchDaemons/com.victorlobe.iCloudMailFix.plist
-rm /var/run/iCloudMailFixd.pid
-
-# Remove logs (optional)
-rm /var/log/iCloudMailFixd.err
-rm /var/log/iCloudMailFixd.out
-rm /var/log/iCloudMailFix-hook.log
-```
-
-## Technical Details
+## ⚙️ Technical Details
 
 ### Supported Protocols
 - **IMAP**: `imap.mail.me.com:993` (TLS) → `127.0.0.1:143` (Plaintext)
