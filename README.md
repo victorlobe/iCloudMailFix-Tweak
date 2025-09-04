@@ -114,7 +114,7 @@ iOS 6 is no longer compatible with modern iCloud Mail servers due to outdated TL
 
 # 🔧 Technical Details
 
-### 🔨 Architecture
+## 🔨 Architecture
 armv7 + arm64
 
 iOS 6 Mail App (Plaintext) ↔ Local Proxy (127.0.0.1) ↔ iCloud Servers (TLS)
