@@ -193,14 +193,8 @@ The tweak uses `MBEDTLS_SSL_VERIFY_OPTIONAL` instead of `REQUIRED` because:
 
 ## 🗒️ To Do
 
-- [ ] **Default iCloud Account Support**:
-- [ ] **Add some settings**:
-
-**Note**: Features are prioritized based on user feedback and technical feasibility.
-
-## 👨‍💻 Author
-
-Made with ❤️ by Victor Lobe
+- [ ] **Default iCloud Account Support**
+- [ ] **Add some settings**
 
 ## 📄 License
 
@@ -209,3 +203,7 @@ MIT License – Free to use, share, and modify.
 ## 🚨 Disclaimer
 
 This tweak is designed for educational and compatibility purposes. Use at your own risk. The developer is not responsible for any data loss or security issues that may arise from using this software.
+
+## 👨‍💻 Author
+
+Made with ❤️ by Victor Lobe
