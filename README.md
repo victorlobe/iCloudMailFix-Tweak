@@ -22,15 +22,12 @@
 
 - [Overview](#-overview)
 - [Quick Start](#-quick-start)
-- [Architecture](#-architecture)
 - [Features](#-features)
 - [Requirements](#-requirements)
 - [Installation](#-installation)
 - [Setup](#-setup)
 - [Version History](#-version-history)
 - [Technical Details](#-technical-details)
-- [Security Notes](#-security-notes)
-- [Logs and Debugging](#-logs-and-debugging)
 - [Troubleshooting](#-troubleshooting)
 - [Uninstallation](#-uninstallation)
 - [To Do](#-to-do)
@@ -149,6 +146,16 @@ The tweak uses `MBEDTLS_SSL_VERIFY_OPTIONAL` instead of `REQUIRED` because:
 - The local proxy + TLS to iCloud provides adequate security
 - Functionality is prioritized over strict certificate validation
 
+### Supported Protocols
+- **IMAP**: `imap.mail.me.com:993` (TLS) → `127.0.0.1:143` (Plaintext)
+- **SMTP**: `smtp.mail.me.com:587` (STARTTLS) → `127.0.0.1:587` (Plaintext)
+
+### TLS Configuration
+- **Library**: mbedTLS 3.x
+- **Validation**: `MBEDTLS_SSL_VERIFY_OPTIONAL`
+- **Ciphers**: Default mbedTLS preset
+- **SNI**: Enabled for proper hostname validation
+
 ## 📊 Logs and Debugging
 
 ### Log Files
@@ -183,18 +190,6 @@ The tweak uses `MBEDTLS_SSL_VERIFY_OPTIONAL` instead of `REQUIRED` because:
 ## 🗑️ Uninstallation
 1. Remove the package through Cydia
 2. Respring your device
-
-## ⚙️ Technical Details
-
-### Supported Protocols
-- **IMAP**: `imap.mail.me.com:993` (TLS) → `127.0.0.1:143` (Plaintext)
-- **SMTP**: `smtp.mail.me.com:587` (STARTTLS) → `127.0.0.1:587` (Plaintext)
-
-### TLS Configuration
-- **Library**: mbedTLS 3.x
-- **Validation**: `MBEDTLS_SSL_VERIFY_OPTIONAL`
-- **Ciphers**: Default mbedTLS preset
-- **SNI**: Enabled for proper hostname validation
 
 ## 🗒️ To Do
 
