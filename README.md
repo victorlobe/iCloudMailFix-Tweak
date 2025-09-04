@@ -31,9 +31,9 @@
 - [Troubleshooting](#-troubleshooting)
 - [Uninstallation](#-uninstallation)
 - [To Do](#-to-do)
-- [Author](#-author)
 - [License](#-license)
 - [Disclaimer](#-disclaimer)
+- [Author](#-author)
 
 ---
 
