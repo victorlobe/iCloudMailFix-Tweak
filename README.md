@@ -62,11 +62,8 @@ iOS 6 Mail App (Plaintext) ↔ Local Proxy (127.0.0.1) ↔ iCloud Servers (TLS)
 2. Install using `dpkg -i iCloudMailFix.deb`
 3. Respring your device
 
-### Account Setup
+## 📲 Setup
 
-**Important**: This tweak currently only works with **manually added iCloud Mail accounts**. The default iCloud Mail account from Settings → iCloud → Mail will not work.
-
-To add a manual iCloud Mail account:
 1. Open **Settings** → **Mail, Contacts, Calendars**
 2. Tap **Add Account**
 3. Select **Other**
@@ -84,9 +81,24 @@ To add a manual iCloud Mail account:
    - Password: **Your App Specific Password**
    
 8. Tap **Save**
-9. You may see an alert asking if you want to set it up without SSL, **tap Yes**. You might also get an error message during setup, just **tap Continue** and finish adding the account. It will work regardless.
+9. It might take a while. Be patient. When asked if you want to set up the account without SSL, select **No SSL**. After that, an error will appear — this is normal. Just tap **Continue**.
+10. Done
 
-**Note**: Support for the default iCloud Mail account will be added in a future update.
+**Note**: This tweak currently only works with manually added iCloud Mail accounts. The default iCloud Mail account from Settings → iCloud → Mail will not work. Support for the default iCloud Mail account will be added in a future update.
+
+
+# Version History
+
+### v1.0.1
+- Fixed the preference bundle on arm64 devices
+- Modified the Instructions
+
+### v1.0.0
+- Initial release
+- IMAP and SMTP support
+- Local TLS proxy implementation
+- Automatic startup via LaunchDaemon
+- Manual iCloud Mail account support only
 
 # Technical Stuff
 
@@ -184,15 +196,6 @@ rm /var/log/iCloudMailFix-hook.log
 - **Validation**: `MBEDTLS_SSL_VERIFY_OPTIONAL`
 - **Ciphers**: Default mbedTLS preset
 - **SNI**: Enabled for proper hostname validation
-
-## Version History
-
-### v1.0.0
-- Initial release
-- IMAP and SMTP support
-- Local TLS proxy implementation
-- Automatic startup via LaunchDaemon
-- Manual iCloud Mail account support only
 
 ## 🗒️ To Do
 
