@@ -101,6 +101,9 @@ iOS 6 is no longer compatible with modern iCloud Mail servers due to outdated TL
 
 # 📝 Version History
 
+### v1.0.2
+- Changed contact E-Mail Adress in control file
+
 ### v1.0.1
 - Fixed the preference bundle on arm64 devices
 - Modified the Instructions
