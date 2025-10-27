@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="120" height="120" alt="AppIcon" src="http://devrepo.victorlobe.me/packageIcons/iCloudMailFixIcon.png" />
+  <img width="120" height="120" alt="AppIcon" src="https://devrepo.victorlobe.me/packageIcons/iCloudMailFixIcon.png](https://storage.victorlobe.me/Cydia/packageIcons/iCloudMailFixIcon.png" />
 </p>
 
 <h1 align="center">iCloudMailFix</h1>
