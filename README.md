@@ -99,7 +99,7 @@ iOS 6 is no longer compatible with modern iCloud Mail servers due to outdated TL
 3. Install the package
 4. Respring your device
 
-# 📝 Version History
+# 📝 Changelog
 
 ### v1.0.2
 - Changed contact E-Mail Adress in control file
