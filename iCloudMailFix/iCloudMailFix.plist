@@ -8,6 +8,7 @@
 	  <string>com.apple.mobilemail</string>
 	  <string>com.apple.accountsd</string>
 	  <string>com.apple.imagent</string>
+	  <string>com.sparrowmailapp.iphoneapp</string>
 	</array>
   </dict>
 </dict></plist>
