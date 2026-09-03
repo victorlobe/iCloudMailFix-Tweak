@@ -2,11 +2,28 @@
 triple:          'armv7-apple-darwin'
 binary-path:     '/Users/victor/Documents/Tweaks/iCloudMailFix/iCloudMailFixPrefs/.theos/obj/debug/armv7/iCloudMailFixPrefs.bundle/iCloudMailFixPrefs'
 relocations:
-  - { offset: 0x1E, size: 0x4, addend: 0x0, symName: '-[ICMRootListController specifiers]', symObjAddr: 0x0, symBinAddr: 0x2EC4, symSize: 0x80 }
-  - { offset: 0x5DF2, size: 0x4, addend: 0x0, symName: '-[ICMRootListController specifiers]', symObjAddr: 0x0, symBinAddr: 0x2EC4, symSize: 0x80 }
-  - { offset: 0x5DF6, size: 0x4, addend: 0x0, symName: '-[ICMRootListController tableView:cellForRowAtIndexPath:]', symObjAddr: 0x80, symBinAddr: 0x2F44, symSize: 0x4E0 }
-  - { offset: 0x5E56, size: 0x4, addend: 0x0, symName: '-[ICMRootListController tableView:cellForRowAtIndexPath:]', symObjAddr: 0x80, symBinAddr: 0x2F44, symSize: 0x4E0 }
-  - { offset: 0x5F6D, size: 0x4, addend: 0x0, symName: '-[ICMRootListController tableView:heightForRowAtIndexPath:]', symObjAddr: 0x560, symBinAddr: 0x3424, symSize: 0x1AC }
-  - { offset: 0x5F71, size: 0x4, addend: 0x0, symName: _CGSizeMake, symObjAddr: 0x70C, symBinAddr: 0x35D0, symSize: 0x26 }
-  - { offset: 0x5FF8, size: 0x4, addend: 0x0, symName: _CGSizeMake, symObjAddr: 0x70C, symBinAddr: 0x35D0, symSize: 0x26 }
+  - { offset: 0x1E, size: 0x4, addend: 0x0, symName: '-[ICMRootListController tableView:cellForRowAtIndexPath:]', symObjAddr: 0x0, symBinAddr: 0x5FF0, symSize: 0x6D6 }
+  - { offset: 0x33, size: 0x4, addend: 0x0, symName: _kCAUpdateRequestPath, symObjAddr: 0x18E4, symBinAddr: 0x8040, symSize: 0x0 }
+  - { offset: 0x8D, size: 0x4, addend: 0x0, symName: _kCAUpdateStatusPath, symObjAddr: 0x18E8, symBinAddr: 0x8044, symSize: 0x0 }
+  - { offset: 0x9E, size: 0x4, addend: 0x0, symName: _kCAOverrideBundlePath, symObjAddr: 0x18EC, symBinAddr: 0x8048, symSize: 0x0 }
+  - { offset: 0xAF, size: 0x4, addend: 0x0, symName: _kCADefaultBundlePath, symObjAddr: 0x18F0, symBinAddr: 0x804C, symSize: 0x0 }
+  - { offset: 0x3E80, size: 0x4, addend: 0x0, symName: '-[ICMRootListController tableView:cellForRowAtIndexPath:]', symObjAddr: 0x0, symBinAddr: 0x5FF0, symSize: 0x6D6 }
+  - { offset: 0x3E84, size: 0x4, addend: 0x0, symName: _CGRectMake, symObjAddr: 0x6D6, symBinAddr: 0x66C6, symSize: 0x42 }
+  - { offset: 0x3F11, size: 0x4, addend: 0x0, symName: _CGRectMake, symObjAddr: 0x6D6, symBinAddr: 0x66C6, symSize: 0x42 }
+  - { offset: 0x3F15, size: 0x4, addend: 0x0, symName: _CGPointMake, symObjAddr: 0x718, symBinAddr: 0x6708, symSize: 0x28 }
+  - { offset: 0x3F74, size: 0x4, addend: 0x0, symName: _CGPointMake, symObjAddr: 0x718, symBinAddr: 0x6708, symSize: 0x28 }
+  - { offset: 0x3FB9, size: 0x4, addend: 0x0, symName: '-[ICMRootListController tableView:heightForRowAtIndexPath:]', symObjAddr: 0x740, symBinAddr: 0x6730, symSize: 0xBC }
+  - { offset: 0x3FBD, size: 0x4, addend: 0x0, symName: '-[ICMRootListController specifiers]', symObjAddr: 0x7FC, symBinAddr: 0x67EC, symSize: 0x92 }
+  - { offset: 0x400A, size: 0x4, addend: 0x0, symName: '-[ICMRootListController specifiers]', symObjAddr: 0x7FC, symBinAddr: 0x67EC, symSize: 0x92 }
+  - { offset: 0x400E, size: 0x4, addend: 0x0, symName: '-[ICMRootListController refreshCABundleDate]', symObjAddr: 0x88E, symBinAddr: 0x687E, symSize: 0x598 }
+  - { offset: 0x403F, size: 0x4, addend: 0x0, symName: '-[ICMRootListController refreshCABundleDate]', symObjAddr: 0x88E, symBinAddr: 0x687E, symSize: 0x598 }
+  - { offset: 0x4043, size: 0x4, addend: 0x0, symName: '-[ICMRootListController updateCABundle:]', symObjAddr: 0xE26, symBinAddr: 0x6E16, symSize: 0x2BA }
+  - { offset: 0x411A, size: 0x4, addend: 0x0, symName: '-[ICMRootListController updateCABundle:]', symObjAddr: 0xE26, symBinAddr: 0x6E16, symSize: 0x2BA }
+  - { offset: 0x418D, size: 0x4, addend: 0x0, symName: '-[ICMRootListController pollCABundleUpdate:]', symObjAddr: 0x10E0, symBinAddr: 0x70D0, symSize: 0x350 }
+  - { offset: 0x4191, size: 0x4, addend: 0x0, symName: '-[ICMRootListController .cxx_destruct]', symObjAddr: 0x1430, symBinAddr: 0x7420, symSize: 0x52 }
+  - { offset: 0x4209, size: 0x4, addend: 0x0, symName: '-[ICMRootListController .cxx_destruct]', symObjAddr: 0x1430, symBinAddr: 0x7420, symSize: 0x52 }
+  - { offset: 0x4497, size: 0x4, addend: 0x0, symName: '-[ICMInstructionsController specifiers]', symObjAddr: 0x0, symBinAddr: 0x7472, symSize: 0x80 }
+  - { offset: 0x776B, size: 0x4, addend: 0x0, symName: '-[ICMInstructionsController specifiers]', symObjAddr: 0x0, symBinAddr: 0x7472, symSize: 0x80 }
+  - { offset: 0x77C8, size: 0x4, addend: 0x0, symName: '-[ICMCreditsController specifiers]', symObjAddr: 0x0, symBinAddr: 0x74F2, symSize: 0x80 }
+  - { offset: 0xAA9C, size: 0x4, addend: 0x0, symName: '-[ICMCreditsController specifiers]', symObjAddr: 0x0, symBinAddr: 0x74F2, symSize: 0x80 }
 ...

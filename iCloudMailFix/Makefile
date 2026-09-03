@@ -22,6 +22,7 @@ MBEDTLS_SRCS = $(wildcard $(MBEDTLS_DIR)/library/*.c)
 
 iCloudMailFixd_FILES  = src/iCloudMailFixd.c $(MBEDTLS_SRCS)
 iCloudMailFixd_CFLAGS += -I$(MBEDTLS_DIR)/include -DMBEDTLS_CONFIG_FILE='<mbedtls/config.h>'
+iCloudMailFixd_FRAMEWORKS = CoreFoundation
 
 include $(THEOS_MAKE_PATH)/tool.mk
 
@@ -29,6 +30,9 @@ after-stage::
 	@echo "→ Installing LaunchDaemon plist…"
 	$(ECHO_NOTHING)mkdir -p $(THEOS_STAGING_DIR)/Library/LaunchDaemons$(ECHO_END)
 	$(ECHO_NOTHING)cp layout/Library/LaunchDaemons/com.victorlobe.iCloudMailFix.plist $(THEOS_STAGING_DIR)/Library/LaunchDaemons/$(ECHO_END)
+	@echo "→ Installing CA certificate bundle…"
+	$(ECHO_NOTHING)mkdir -p $(THEOS_STAGING_DIR)/Library/iCloudMailFix$(ECHO_END)
+	$(ECHO_NOTHING)cp cacert.pem $(THEOS_STAGING_DIR)/Library/iCloudMailFix/cacert.pem$(ECHO_END)
 
 	@echo "→ Installing DEBIAN maintainer scripts…"
 	$(ECHO_NOTHING)mkdir -p $(THEOS_STAGING_DIR)/DEBIAN$(ECHO_END)
@@ -56,14 +60,17 @@ dev-pipeline:
 	# Run everything under a PTY so child tools line-buffer their output.
 	@script -q /dev/null /bin/bash -lc 'set -euo pipefail; \
 		echo "[ℹ️ ] Locating latest .deb…"; \
-		DEB="$$(ls -t "$(THEOS_PACKAGE_DIR)"/*.deb | head -1)"; \
+		shopt -s nullglob; DEBS=("$(THEOS_PACKAGE_DIR)"/*.deb); \
+		DEB=""; for CANDIDATE in "$${DEBS[@]}"; do \
+			if [ -z "$$DEB" ] || [ "$$CANDIDATE" -nt "$$DEB" ]; then DEB="$$CANDIDATE"; fi; \
+		done; \
 		if [ -z "$$DEB" ] || [ ! -f "$$DEB" ]; then echo "[❌] No .deb found in $(THEOS_PACKAGE_DIR)"; exit 1; fi; \
 		echo "[ℹ️ ] Found: $$DEB"; \
 		BASE="$$(basename "$$DEB" .deb)"; TMP="$${BASE#*_}"; VERSION="$${TMP%_*}"; \
 		echo "[ℹ️ ] Version: $$VERSION"; \
-		echo "[📦] Git commit…"; \
-		git add -A; \
-		if git commit -m "Build $$VERSION"; then echo "[✅] Commit successful"; else echo "[⚠️ ] Nothing to commit"; fi; \
+		echo "[📦] Git commit (build artifact only)…"; \
+		git add -f -- "$$DEB"; \
+		if git commit --only -m "Build $$VERSION" -- "$$DEB"; then echo "[✅] Build artifact committed"; else echo "[⚠️ ] Nothing to commit"; fi; \
 		DEST="/Volumes/victor/Sites/repo-dev/debs"; \
 		echo "[📂] Copy .deb → $$DEST"; \
 		mkdir -p "$$DEST"; cp -v "$$DEB" "$$DEST/"; \
@@ -83,14 +90,17 @@ dev-pipeline:
 release-pipeline:
 	@echo "[📌] Starting Build on RELEASE Pipeline" 1>&2
 	@script -q /dev/null /bin/bash -lc 'set -euo pipefail; \
-	DEB="$$(ls -t "$(THEOS_PACKAGE_DIR)"/*.deb | head -1)"; \
+	shopt -s nullglob; DEBS=("$(THEOS_PACKAGE_DIR)"/*.deb); \
+	DEB=""; for CANDIDATE in "$${DEBS[@]}"; do \
+		if [ -z "$$DEB" ] || [ "$$CANDIDATE" -nt "$$DEB" ]; then DEB="$$CANDIDATE"; fi; \
+	done; \
 	if [ -z "$$DEB" ] || [ ! -f "$$DEB" ]; then echo "[❌] No .deb found in $(THEOS_PACKAGE_DIR)"; exit 1; fi; \
 	BASE="$$(basename "$$DEB" .deb)"; TMP="$${BASE#*_}"; VER="$${TMP%_*}"; \
 	echo "[🚀 RELEASE] Built $$DEB (Version: $$VER)"; \
-	echo "[ℹ️ ] (Release mode: no deploy; just committing)"; \
-	git add -A || true; \
-	if git commit -m "Release $$VER"; then \
-		echo "[✅] Git commit: Release $$VER"; \
+	echo "[ℹ️ ] (Release mode: no deploy; committing build artifact only)"; \
+	git add -f -- "$$DEB"; \
+	if git commit --only -m "Release $$VER" -- "$$DEB"; then \
+		echo "[✅] Git commit: Release $$VER (build artifact only)"; \
 	else \
 		echo "[⚠️ ] Nothing to commit"; \
 	fi;'

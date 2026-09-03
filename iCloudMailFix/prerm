@@ -14,4 +14,10 @@ fi
 # Altes PID-Lock entfernen, damit neue Version starten kann
 [ -f "$PIDFILE" ] && rm -f "$PIDFILE"
 
+# Runtime CA update files are not package-owned, so remove them explicitly.
+rm -f /Library/iCloudMailFix/cacert.override.pem
+rm -f /Library/iCloudMailFix/cacert.override.pem.tmp
+rm -f /var/mobile/Library/Preferences/com.victorlobe.icloudmailfix-ca-update
+rm -f /var/mobile/Library/Preferences/com.victorlobe.icloudmailfix-ca-update-status
+
 exit 0
