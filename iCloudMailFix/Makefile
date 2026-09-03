@@ -29,6 +29,9 @@ after-stage::
 	@echo "→ Installing LaunchDaemon plist…"
 	$(ECHO_NOTHING)mkdir -p $(THEOS_STAGING_DIR)/Library/LaunchDaemons$(ECHO_END)
 	$(ECHO_NOTHING)cp layout/Library/LaunchDaemons/com.victorlobe.iCloudMailFix.plist $(THEOS_STAGING_DIR)/Library/LaunchDaemons/$(ECHO_END)
+	@echo "→ Installing CA certificate bundle…"
+	$(ECHO_NOTHING)mkdir -p $(THEOS_STAGING_DIR)/Library/iCloudMailFix$(ECHO_END)
+	$(ECHO_NOTHING)cp cacert.pem $(THEOS_STAGING_DIR)/Library/iCloudMailFix/cacert.pem$(ECHO_END)
 
 	@echo "→ Installing DEBIAN maintainer scripts…"
 	$(ECHO_NOTHING)mkdir -p $(THEOS_STAGING_DIR)/DEBIAN$(ECHO_END)

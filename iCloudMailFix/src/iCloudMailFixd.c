@@ -70,6 +70,7 @@ typedef struct {
 	mbedtls_entropy_context  entropy;
 	mbedtls_ctr_drbg_context ctr;
 	mbedtls_ssl_config       conf;
+	mbedtls_x509_crt         ca_chain;
 } tls_env_t;
 
 static int tls_env_init(tls_env_t* E);
@@ -115,6 +116,7 @@ static void on_sig(int s);
 #define UP_IMAP_PORT   "993"
 #define UP_SMTP_HOST   "smtp.mail.me.com"
 #define UP_SMTP_PORT   "587"
+#define CA_BUNDLE_PATH "/Library/iCloudMailFix/cacert.pem"
 
 // ============================================================================
 // GLOBALS
@@ -298,9 +300,25 @@ static int tls_env_init(tls_env_t* E){
 	mbedtls_entropy_init(&E->entropy);
 	mbedtls_ctr_drbg_init(&E->ctr);
 	mbedtls_ssl_config_init(&E->conf);
+	mbedtls_x509_crt_init(&E->ca_chain);
+
+	int ret = mbedtls_x509_crt_parse_file(&E->ca_chain, CA_BUNDLE_PATH);
+	if (ret < 0){
+		LOGE("CA bundle load failed: %s: %d (%s)", CA_BUNDLE_PATH, ret, tls_err(ret));
+		return ret;
+	}
+	if (E->ca_chain.raw.p == NULL){
+		LOGE("CA bundle contains no usable certificates: %s", CA_BUNDLE_PATH);
+		return MBEDTLS_ERR_X509_INVALID_FORMAT;
+	}
+	if (ret > 0){
+		LOGI("CA bundle loaded with %d certificate(s) skipped: %s", ret, CA_BUNDLE_PATH);
+	}else{
+		LOGI("CA bundle loaded: %s", CA_BUNDLE_PATH);
+	}
 
 	const char* pers = "iCloudMailFixd-rng";
-	int ret = mbedtls_ctr_drbg_seed(&E->ctr, mbedtls_entropy_func, &E->entropy,
+	ret = mbedtls_ctr_drbg_seed(&E->ctr, mbedtls_entropy_func, &E->entropy,
 									(const unsigned char*)pers, strlen(pers));
 	if (ret != 0){ LOGE("ctr_drbg_seed: %d", ret); return ret; }
 
@@ -310,7 +328,8 @@ static int tls_env_init(tls_env_t* E){
 									  MBEDTLS_SSL_PRESET_DEFAULT);
 	if (ret != 0){ LOGE("ssl_config_defaults: %d", ret); return ret; }
 
-	mbedtls_ssl_conf_authmode(&E->conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
+	mbedtls_ssl_conf_ca_chain(&E->conf, &E->ca_chain, NULL);
+	mbedtls_ssl_conf_authmode(&E->conf, MBEDTLS_SSL_VERIFY_REQUIRED);
 	mbedtls_ssl_conf_rng(&E->conf, mbedtls_ctr_drbg_random, &E->ctr);
 	return 0;
 }
@@ -319,6 +338,7 @@ static void tls_env_free(tls_env_t* E){
 	mbedtls_ssl_config_free(&E->conf);
 	mbedtls_ctr_drbg_free(&E->ctr);
 	mbedtls_entropy_free(&E->entropy);
+	mbedtls_x509_crt_free(&E->ca_chain);
 }
 
 // ============================================================================
