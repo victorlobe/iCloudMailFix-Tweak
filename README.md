@@ -115,6 +115,7 @@ If you experience problems, check that the following ports are configured:
 - Added support for the Sparrow mail client
 - Added optional TLS certificate validation, enabled by default for improved security
 - Added CA certificate bundle updates via settings
+- New settings screen
 - Huge thanks to Jeffrey Bergier ([@jeffreybergier](https://github.com/jeffreybergier) on GitHub) for contributing Notes synchronization, CA certificate validation, and Sparrow support through pull requests #4, #5, and #6.
 
 ### v1.0.2
