@@ -3,6 +3,7 @@ set -e
 LOG="/var/log/iCloudMailFixd.pkg.log"
 PLIST="/Library/LaunchDaemons/com.victorlobe.iCloudMailFix.plist"
 BIN="/usr/libexec/iCloudMailFixd"
+CA_BUNDLE="/Library/iCloudMailFix/cacert.pem"
 
 echo "[`date '+%F %T'`] postinst: configuring…" >> "$LOG" 2>&1
 
@@ -14,6 +15,10 @@ fi
 if [ -f "$BIN" ]; then
   /usr/sbin/chown root:wheel "$BIN" || true
   /bin/chmod 0755 "$BIN" || true
+fi
+if [ -f "$CA_BUNDLE" ]; then
+  /usr/sbin/chown root:wheel "$CA_BUNDLE" || true
+  /bin/chmod 0644 "$CA_BUNDLE" || true
 fi
 
 # (Re)Load

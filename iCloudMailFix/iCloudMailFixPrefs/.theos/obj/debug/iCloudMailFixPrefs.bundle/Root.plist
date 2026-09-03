@@ -6,14 +6,62 @@
 	<array>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
+			<string>PSButtonCell</string>
 			<key>label</key>
-			<string>Tutorial</string>
+			<string>iCloudMailFix</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
-			<key>isStaticText</key>
+			<key>label</key>
+			<string>Certificate Settings</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>label</key>
+			<string>Validate TLS certificates</string>
+			<key>key</key>
+			<string>EnableCertificateValidation</string>
+			<key>defaults</key>
+			<string>com.victorlobe.icloudmailfix</string>
+			<key>default</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>Update CA certificate bundle</string>
+			<key>alignment</key>
+			<integer>0</integer>
+			<key>action</key>
+			<string>updateCABundle:</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Information</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkCell</string>
+			<key>label</key>
+			<string>Instructions</string>
+			<key>detail</key>
+			<string>ICMInstructionsController</string>
+			<key>isController</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkCell</string>
+			<key>label</key>
+			<string>Credits</string>
+			<key>detail</key>
+			<string>ICMCreditsController</string>
+			<key>isController</key>
 			<true/>
 		</dict>
 		<dict>

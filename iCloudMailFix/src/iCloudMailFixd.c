@@ -12,6 +12,7 @@
 #include <time.h>
 #include <pthread.h>
 #include <ctype.h>
+#include <CoreFoundation/CoreFoundation.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -52,7 +53,7 @@
 // Logging and utilities
 static void ts_now(char* out, size_t cap);
 static void vlogf(const char* tag, const char* fmt, va_list ap);
-static void logf(const char* tag, const char* fmt, ...);
+static void icmf_logf(const char* tag, const char* fmt, ...);
 static const char* tls_err(int ret);
 static void name_of_fd(int fd, char* out, size_t cap);
 static long ms_since(const struct timeval* a, const struct timeval* b);
@@ -70,11 +71,13 @@ typedef struct {
 	mbedtls_entropy_context  entropy;
 	mbedtls_ctr_drbg_context ctr;
 	mbedtls_ssl_config       conf;
+	mbedtls_x509_crt         ca_chain;
 } tls_env_t;
 
 static int tls_env_init(tls_env_t* E);
 static void tls_env_free(tls_env_t* E);
 static int tls_wrap_fd(mbedtls_ssl_context* ssl, tls_env_t* E, int up_fd, const char* sni);
+static int update_ca_bundle(tls_env_t* E);
 
 // BIO callbacks
 typedef struct { int fd; } tls_bio_t;
@@ -115,6 +118,10 @@ static void on_sig(int s);
 #define UP_IMAP_PORT   "993"
 #define UP_SMTP_HOST   "smtp.mail.me.com"
 #define UP_SMTP_PORT   "587"
+#define CA_BUNDLE_PATH "/Library/iCloudMailFix/cacert.pem"
+#define CA_OVERRIDE_PATH "/Library/iCloudMailFix/cacert.override.pem"
+#define CA_UPDATE_REQUEST_PATH "/var/mobile/Library/Preferences/com.victorlobe.icloudmailfix-ca-update"
+#define CA_UPDATE_STATUS_PATH "/var/mobile/Library/Preferences/com.victorlobe.icloudmailfix-ca-update-status"
 
 // ============================================================================
 // GLOBALS
@@ -144,14 +151,14 @@ static void vlogf(const char* tag, const char* fmt, va_list ap){
 	fputc('\n', stderr);
 }
 
-static void logf(const char* tag, const char* fmt, ...){
+static void icmf_logf(const char* tag, const char* fmt, ...){
 	va_list ap; va_start(ap, fmt); vlogf(tag, fmt, ap); va_end(ap);
 }
 
-#define LOGE(...) logf("ERR", __VA_ARGS__)
-#define LOGI(...) logf("INF", __VA_ARGS__)
-#define LOGD(...) logf("DBG", __VA_ARGS__)
-#define LOGV(...) logf("VRB", __VA_ARGS__)
+#define LOGE(...) icmf_logf("ERR", __VA_ARGS__)
+#define LOGI(...) icmf_logf("INF", __VA_ARGS__)
+#define LOGD(...) icmf_logf("DBG", __VA_ARGS__)
+#define LOGV(...) icmf_logf("VRB", __VA_ARGS__)
 
 static const char* tls_err(int ret){
 	static char buf[128];
@@ -298,9 +305,49 @@ static int tls_env_init(tls_env_t* E){
 	mbedtls_entropy_init(&E->entropy);
 	mbedtls_ctr_drbg_init(&E->ctr);
 	mbedtls_ssl_config_init(&E->conf);
+	mbedtls_x509_crt_init(&E->ca_chain);
 
+	/* The preference bundle runs as mobile while this daemon runs as root. */
+	CFPropertyListRef validation = CFPreferencesCopyValue(CFSTR("EnableCertificateValidation"),
+		CFSTR("com.victorlobe.icloudmailfix"), kCFPreferencesAnyUser, kCFPreferencesAnyHost);
+	int verify = validation == NULL ||
+		(CFGetTypeID(validation) == CFBooleanGetTypeID() && CFBooleanGetValue((CFBooleanRef)validation));
+	if (validation) CFRelease(validation);
+
+	int ret = 0;
+	if (!verify) {
+		LOGI("TLS certificate validation disabled by preference");
+		goto configure;
+	}
+
+	const char *bundle = CA_BUNDLE_PATH;
+	int using_override = (access(CA_OVERRIDE_PATH, R_OK) == 0);
+	if (using_override) bundle = CA_OVERRIDE_PATH;
+	ret = mbedtls_x509_crt_parse_file(&E->ca_chain, bundle);
+	if (ret != 0 && using_override) {
+		LOGE("CA override invalid or partially unreadable (%d); falling back to bundled CA file", ret);
+		mbedtls_x509_crt_free(&E->ca_chain);
+		mbedtls_x509_crt_init(&E->ca_chain);
+		bundle = CA_BUNDLE_PATH;
+		ret = mbedtls_x509_crt_parse_file(&E->ca_chain, bundle);
+	}
+	if (ret < 0){
+		LOGE("CA bundle load failed: %s: %d (%s)", bundle, ret, tls_err(ret));
+		return ret;
+	}
+	if (E->ca_chain.raw.p == NULL){
+		LOGE("CA bundle contains no usable certificates: %s", bundle);
+		return MBEDTLS_ERR_X509_INVALID_FORMAT;
+	}
+	if (ret > 0){
+		LOGI("CA bundle loaded with %d certificate(s) skipped: %s", ret, bundle);
+	}else{
+		LOGI("CA bundle loaded: %s", bundle);
+	}
+
+	configure:;
 	const char* pers = "iCloudMailFixd-rng";
-	int ret = mbedtls_ctr_drbg_seed(&E->ctr, mbedtls_entropy_func, &E->entropy,
+	ret = mbedtls_ctr_drbg_seed(&E->ctr, mbedtls_entropy_func, &E->entropy,
 									(const unsigned char*)pers, strlen(pers));
 	if (ret != 0){ LOGE("ctr_drbg_seed: %d", ret); return ret; }
 
@@ -310,7 +357,8 @@ static int tls_env_init(tls_env_t* E){
 									  MBEDTLS_SSL_PRESET_DEFAULT);
 	if (ret != 0){ LOGE("ssl_config_defaults: %d", ret); return ret; }
 
-	mbedtls_ssl_conf_authmode(&E->conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
+	if (verify) mbedtls_ssl_conf_ca_chain(&E->conf, &E->ca_chain, NULL);
+	mbedtls_ssl_conf_authmode(&E->conf, verify ? MBEDTLS_SSL_VERIFY_REQUIRED : MBEDTLS_SSL_VERIFY_OPTIONAL);
 	mbedtls_ssl_conf_rng(&E->conf, mbedtls_ctr_drbg_random, &E->ctr);
 	return 0;
 }
@@ -319,6 +367,7 @@ static void tls_env_free(tls_env_t* E){
 	mbedtls_ssl_config_free(&E->conf);
 	mbedtls_ctr_drbg_free(&E->ctr);
 	mbedtls_entropy_free(&E->entropy);
+	mbedtls_x509_crt_free(&E->ca_chain);
 }
 
 // ============================================================================
@@ -377,6 +426,97 @@ static int tls_wrap_fd(mbedtls_ssl_context* ssl, tls_env_t* E, int up_fd, const 
 	gettimeofday(&t1,NULL);
 	LOGD("TLS handshake ok in %ld ms", ms_since(&t0,&t1));
 	return 0;
+}
+
+static int update_ca_bundle(tls_env_t* E){
+	const char *host = "curl.se";
+	int fd = tcp_connect_blocking(host, "443");
+	if (fd < 0) return -1;
+
+	mbedtls_ssl_context ssl;
+	memset(&ssl, 0, sizeof(ssl));
+	int ret = tls_wrap_fd(&ssl, E, fd, host);
+	if (ret != 0){
+		LOGE("CA update: TLS handshake failed: %d (%s)", ret, tls_err(ret));
+		mbedtls_ssl_free(&ssl);
+		close(fd);
+		return ret;
+	}
+
+	static const char request[] =
+		"GET /ca/cacert.pem HTTP/1.0\r\n"
+		"Host: curl.se\r\n"
+		"Connection: close\r\n\r\n";
+	if (mbedtls_ssl_write(&ssl, (const unsigned char*)request, strlen(request)) <= 0){
+		LOGE("CA update: HTTP request failed");
+		mbedtls_ssl_free(&ssl);
+		close(fd);
+		return -1;
+	}
+
+	const size_t cap = 512 * 1024;
+	unsigned char *response = (unsigned char*)malloc(cap);
+	if (!response){
+		mbedtls_ssl_free(&ssl);
+		close(fd);
+		return -1;
+	}
+	size_t used = 0;
+	while (used < cap){
+		ret = mbedtls_ssl_read(&ssl, response + used, cap - used);
+		if (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE) continue;
+		if (ret <= 0) break;
+		used += (size_t)ret;
+	}
+	mbedtls_ssl_free(&ssl);
+	close(fd);
+
+	if (used == cap){
+		LOGE("CA update: response too large");
+		free(response);
+		return -1;
+	}
+	response[used] = 0;
+	unsigned char *body = (unsigned char*)strstr((char*)response, "\r\n\r\n");
+	if (!body || strncmp((char*)response, "HTTP/1.", 7) != 0 || !strstr((char*)response, " 200 ")){
+		LOGE("CA update: invalid HTTP response");
+		free(response);
+		return -1;
+	}
+	body += 4;
+	size_t body_len = used - (size_t)(body - response);
+	const char *tmp = CA_OVERRIDE_PATH ".tmp";
+	int out = open(tmp, O_WRONLY|O_CREAT|O_TRUNC, 0644);
+	if (out < 0 || write_all(out, body, body_len) != 0){
+		if (out >= 0) close(out);
+		free(response);
+		return -1;
+	}
+	close(out);
+
+	mbedtls_x509_crt check;
+	mbedtls_x509_crt_init(&check);
+	ret = mbedtls_x509_crt_parse_file(&check, tmp);
+	int valid = (ret == 0 && check.raw.p != NULL);
+	mbedtls_x509_crt_free(&check);
+	if (!valid || rename(tmp, CA_OVERRIDE_PATH) != 0){
+		LOGE("CA update: downloaded bundle failed certificate validation");
+		unlink(tmp);
+		free(response);
+		return -1;
+	}
+	chmod(CA_OVERRIDE_PATH, 0644);
+	LOGI("CA update: downloaded and installed official curl/Mozilla bundle (%u bytes)", (unsigned)body_len);
+	free(response);
+	return 0;
+}
+
+static void write_ca_update_status(const char *status){
+	int fd = open(CA_UPDATE_STATUS_PATH, O_WRONLY|O_CREAT|O_TRUNC, 0644);
+	if (fd < 0) return;
+	write_all(fd, status, strlen(status));
+	close(fd);
+	chmod(CA_UPDATE_STATUS_PATH, 0644);
 }
 
 // ============================================================================
@@ -781,10 +921,34 @@ static void* serve_thread_impl(void* arg){
 	return NULL;
 }
 
-static void* hb(void* _){
+static void* hb(void* arg){
+	tls_env_t* env = (tls_env_t*)arg;
 	while (g_run){
 		LOGD("hb: alive pid=%d imap=%d smtp=%d", getpid(), g_imap_clients, g_smtp_clients);
 		sleep(20);
+		/* Preferences and the downloaded override are picked up between sessions. */
+		if (g_run && g_imap_clients == 0 && g_smtp_clients == 0) {
+			if (access(CA_UPDATE_REQUEST_PATH, R_OK) == 0) {
+				unlink(CA_UPDATE_REQUEST_PATH);
+				write_ca_update_status("pending\n");
+				CFPropertyListRef validation = CFPreferencesCopyValue(CFSTR("EnableCertificateValidation"),
+					CFSTR("com.victorlobe.icloudmailfix"), kCFPreferencesAnyUser, kCFPreferencesAnyHost);
+				int verify = validation == NULL ||
+					(CFGetTypeID(validation) == CFBooleanGetTypeID() && CFBooleanGetValue((CFBooleanRef)validation));
+				if (validation) CFRelease(validation);
+				int update_ret = verify ? update_ca_bundle(env) : -1;
+				if (!verify) LOGI("CA update skipped because TLS certificate validation is disabled");
+				write_ca_update_status(update_ret == 0 ? "success\n" : "failure\n");
+			}
+			tls_env_t fresh;
+			if (tls_env_init(&fresh) == 0) {
+				tls_env_free(env);
+				*env = fresh;
+				LOGI("TLS configuration reloaded");
+			} else {
+				tls_env_free(&fresh);
+			}
+		}
 	}
 	return NULL;
 }
@@ -833,7 +997,7 @@ int main(int argc, char** argv){
 	pthread_t th_imap, th_smtp, th_hb;
 	pthread_create(&th_imap, NULL, serve_thread_impl, &a_imap);
 	pthread_create(&th_smtp, NULL, serve_thread_impl, &a_smtp);
-	pthread_create(&th_hb,   NULL, hb,           NULL);
+	pthread_create(&th_hb,   NULL, hb,           &env);
 
 	while (g_run) sleep(1);
 

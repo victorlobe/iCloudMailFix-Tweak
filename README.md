@@ -26,10 +26,11 @@
 - [Requirements](#-requirements)
 - [Installation](#-installation)
 - [Setup](#-setup)
-- [Version History](#-version-history)
+- [Changelog](#-changelog)
 - [Technical Details](#-technical-details)
 - [Troubleshooting](#-troubleshooting)
 - [Uninstallation](#-uninstallation)
+- [Credits](#-credits)
 - [To Do](#-to-do)
 - [License](#-license)
 - [Disclaimer](#-disclaimer)
@@ -49,7 +50,7 @@ iOS 6 is no longer compatible with modern iCloud Mail servers due to outdated TL
 ## 🚀 Quick Start
 
 1. **Install** the tweak from `repo.victorlobe.me`
-2. **Add** your iCloud Mail account manually in Settings → Mail, Contacts, Calendars (See Settings -> iCloud Mail Fix for instructions)
+2. **Add** your iCloud Mail account manually in Settings → Mail, Contacts, Calendars (see Settings → iCloud Mail Fix → Instructions)
 3. **Enjoy** working Mail app on iOS 6!
 
 ## ⚙️ Setup
@@ -62,17 +63,21 @@ iOS 6 is no longer compatible with modern iCloud Mail servers due to outdated TL
 
 6. For **Incoming Mail Server**:
    - Host Name: `imap.mail.me.com`
-   - Username: The **name part** of your mail address e.g. Tim.cook@icloud.com -> **Tim.cook**
+   - Username: The **name part** of your mail address e.g. John.ternus@icloud.com → **John.ternus**
    - Password: **Your App Specific Password**
    
 7. For **Outgoing Mail Server**:
    - Host Name: `smtp.mail.me.com`
-   - Username: Your **full** iCloud email e.g. **Tim.cook@icloud.com**
+   - Username: Your **full** iCloud email e.g. **John.ternus@icloud.com**
    - Password: **Your App Specific Password**
    
 8. Tap **Save**
 9. It might take a while. Be patient. When asked if you want to set up the account without SSL, select **No SSL**. After that, an error will appear — this is normal. Just tap **Continue**.
 10. Done
+
+If you experience problems, check that the following ports are configured:
+- **Incoming mail (IMAP)**: `143`
+- **Outgoing mail (SMTP)**: `587`
 
 **Note**: This tweak currently only works with manually added iCloud Mail accounts. The default iCloud Mail account from Settings → iCloud → Mail will not work. Support for the default iCloud Mail account will be added in a future update.
 
@@ -83,6 +88,10 @@ iOS 6 is no longer compatible with modern iCloud Mail servers due to outdated TL
 -  **SMTP Support**: `smtp.mail.me.com:587` → `127.0.0.1:587`
 -  **Automatic Startup**: Runs as a LaunchDaemon
 -  **Modern TLS**: Uses mbedTLS for secure connections
+-  **iCloud Notes**: Supports syncing iCloud Notes
+-  **Sparrow Support**: Works with the Sparrow mail client
+-  **TLS Certificate Validation**: Enabled by default and can be disabled for compatibility
+-  **CA Bundle Updates**: Update the CA certificate bundle directly from the device through Settings
 - ⚠️ **Manual Account Only**: Currently only works with manually added iCloud Mail accounts (will be fixed in a later version)
 
 ## 📋 Requirements
@@ -101,8 +110,15 @@ iOS 6 is no longer compatible with modern iCloud Mail servers due to outdated TL
 
 # 📝 Changelog
 
+### v2.0.0
+- Added support for syncing iCloud Notes
+- Added support for the Sparrow mail client
+- Added optional TLS certificate validation, enabled by default for improved security
+- Added CA certificate bundle updates via settings
+- Huge thanks to Jeffrey Bergier ([@jeffreybergier](https://github.com/jeffreybergier) on GitHub) for contributing Notes synchronization, CA certificate validation, and Sparrow support through pull requests #4, #5, and #6.
+
 ### v1.0.2
-- Changed contact E-Mail Adress in control file
+- Changed contact email address in the control file
 
 ### v1.0.1
 - Fixed the preference bundle on arm64 devices
@@ -140,14 +156,10 @@ iOS 6 Mail App (Plaintext) ↔ Local Proxy (127.0.0.1) ↔ iCloud Servers (TLS)
 - ❌ **Access sensitive data** - Passwords are never processed, stored, or logged. Only connection metadata is logged locally.
 
 ### Security Considerations
-- ⚠️ **TLS Validation**: Uses `MBEDTLS_SSL_VERIFY_OPTIONAL` for iOS 6 compatibility. While this reduces security, the risk is minimal for normal users since attacks are extremely unlikely in practice. Use your own hotspot in public places for extra safety.
+- ⚠️ **TLS Validation**: Certificate validation is enabled by default and uses the CA bundle installed by iCloudMailFix. It can be disabled in Settings → iCloud Mail Fix for compatibility troubleshooting.
 
 ### TLS Security
-The tweak uses `MBEDTLS_SSL_VERIFY_OPTIONAL` instead of `REQUIRED` because:
-- iOS 6 has outdated CA certificates (2012)
-- Modern iCloud certificates would fail validation
-- The local proxy + TLS to iCloud provides adequate security
-- Functionality is prioritized over strict certificate validation
+The tweak uses `MBEDTLS_SSL_VERIFY_OPTIONAL` for iOS 6 compatibility. The CA bundle can be updated from Settings → iCloud Mail Fix → Update CA certificate bundle. The downloaded bundle is validated before it replaces the active local override.
 
 ### Supported Protocols
 - **IMAP**: `imap.mail.me.com:993` (TLS) → `127.0.0.1:143` (Plaintext)
@@ -156,6 +168,7 @@ The tweak uses `MBEDTLS_SSL_VERIFY_OPTIONAL` instead of `REQUIRED` because:
 ### TLS Configuration
 - **Library**: mbedTLS 3.x
 - **Validation**: `MBEDTLS_SSL_VERIFY_OPTIONAL`
+- **Default**: Certificate validation enabled
 - **Ciphers**: Default mbedTLS preset
 - **SNI**: Enabled for proper hostname validation
 
@@ -189,15 +202,24 @@ The tweak uses `MBEDTLS_SSL_VERIFY_OPTIONAL` instead of `REQUIRED` because:
 - **Port conflicts**: Ensure ports 143 and 587 are not used by other services
 - **Firewall**: Check if any firewall is blocking localhost connections (unlikely)
 - **Network**: Verify internet connectivity for iCloud server connections (obviously)
+- **Certificate errors**: In Settings → iCloud Mail Fix, update the CA certificate bundle and verify that certificate validation is enabled
+
+### CA Bundle Update Issues
+- Make sure the device has an active internet connection
+- Leave the update alert open until it reports success or failure
+- If the update fails, the previous CA bundle remains active
 
 ## 🗑️ Uninstallation
 1. Remove the package through Cydia
 2. Respring your device
 
+## 👨‍💻 Credits
+
+Huge thanks to Jeffrey Bergier ([@jeffreybergier](https://github.com/jeffreybergier) on GitHub) for contributing Notes synchronization, CA certificate validation, and Sparrow support through pull requests #4, #5, and #6.
+
 ## 🗒️ To Do
 
 - [ ] **Default iCloud Account Support**
-- [ ] **Add some settings**
 - [ ] **Support for more iOS Versions**
   - [ ] **iOS 5**
   - [ ] **iOS 8** 
