@@ -1,6 +1,6 @@
 Package: com.victorlobe.icloudmailfix
 Name: iCloudMailFix
-Version: 2
+Version: 2.0.1
 Architecture: iphoneos-arm
 Description: Fix iCloud Mail and Notes!
 Maintainer: Victor <contact@victorlobe.me>
