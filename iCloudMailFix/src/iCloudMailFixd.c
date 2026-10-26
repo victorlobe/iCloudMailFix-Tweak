@@ -23,6 +23,7 @@
 
 #include <netdb.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 
 #include "mbedtls/ssl.h"
@@ -72,11 +73,14 @@ typedef struct {
 	mbedtls_ctr_drbg_context ctr;
 	mbedtls_ssl_config       conf;
 	mbedtls_x509_crt         ca_chain;
+	int                      refs;
 } tls_env_t;
 
 static int tls_env_init(tls_env_t* E);
 static void tls_env_free(tls_env_t* E);
-static int tls_wrap_fd(mbedtls_ssl_context* ssl, tls_env_t* E, int up_fd, const char* sni);
+static tls_env_t* env_acquire(void);
+static void env_release(tls_env_t* E);
+static int tls_wrap_fd(mbedtls_ssl_context* ssl, tls_env_t* E, int up_fd, const char* sni, int client_fd);
 static int update_ca_bundle(tls_env_t* E);
 
 // BIO callbacks
@@ -85,7 +89,7 @@ static int bio_send(void* ctx, const unsigned char* buf, size_t len);
 static int bio_recv(void* ctx, unsigned char* buf, size_t len);
 
 // Proxy loop
-static void proxy_loop_plain_tls(int cs, mbedtls_ssl_context* ssl);
+static void proxy_loop_plain_tls(int cs, mbedtls_ssl_context* ssl, int idle_timeout_s);
 
 // Line reading utilities
 static int recv_line_crlf_to(int fd, char* buf, size_t cap, int timeout_ms);
@@ -102,8 +106,10 @@ static void handle_imap(int cs, tls_env_t* env);
 static void handle_smtp(int cs, tls_env_t* env);
 
 // Threading and main
-typedef struct { int ls; int is_imap; tls_env_t* env; } serve_args_t;
+typedef struct { int ls; int is_imap; } serve_args_t;
+typedef struct { int cs; int is_imap; } client_args_t;
 static void* serve_thread_impl(void* arg);
+static void* client_thread(void* arg);
 static void* hb(void* _);
 static void on_sig(int s);
 
@@ -118,6 +124,16 @@ static void on_sig(int s);
 #define UP_IMAP_PORT   "993"
 #define UP_SMTP_HOST   "smtp.mail.me.com"
 #define UP_SMTP_PORT   "587"
+#define IMAP_IDLE_TIMEOUT_S 1860
+#define SMTP_IDLE_TIMEOUT_S 30
+#define TLS_HANDSHAKE_TIMEOUT_S 30
+#define UP_KEEPALIVE_IDLE_S  300
+#define UP_KEEPALIVE_INTVL_S 30
+#define UP_KEEPALIVE_CNT     4
+#define LOG_PATH       "/var/log/iCloudMailFixd.err"
+#define LOG_MAX_BYTES  (5 * 1024 * 1024)
+#define HB_LOG_EVERY   30
+#define PREFS_PATH     "/var/mobile/Library/Preferences/com.victorlobe.icloudmailfix.plist"
 #define CA_BUNDLE_PATH "/Library/iCloudMailFix/cacert.pem"
 #define CA_OVERRIDE_PATH "/Library/iCloudMailFix/cacert.override.pem"
 #define CA_UPDATE_REQUEST_PATH "/var/mobile/Library/Preferences/com.victorlobe.icloudmailfix-ca-update"
@@ -131,6 +147,10 @@ static volatile int g_run = 1;
 static volatile int g_imap_clients = 0;
 static volatile int g_smtp_clients = 0;
 static char g_ehlo_name[256] = {0};
+
+static tls_env_t* g_env = NULL;
+static pthread_mutex_t g_env_mu = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t g_rng_mu = PTHREAD_MUTEX_INITIALIZER;
 
 // ============================================================================
 // LOGGING SYSTEM
@@ -199,12 +219,25 @@ static int set_nosigpipe(int fd){
 	return setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one));
 }
 
+static void set_keepalive(int fd){
+	int on = 1, idle = UP_KEEPALIVE_IDLE_S, intvl = UP_KEEPALIVE_INTVL_S, cnt = UP_KEEPALIVE_CNT;
+	setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));
+	setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, &idle, sizeof(idle));
+	setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl));
+	setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt));
+}
+
 static int send_all(int fd, const void* b, size_t n){
 	const char *p = (const char*)b; size_t off = 0;
 	while (off < n){
 		ssize_t w = send(fd, p + off, n - off, 0);
 		if (w < 0){
 			if (errno == EINTR) continue;
+			if (errno == EAGAIN || errno == EWOULDBLOCK){
+				fd_set wfds; FD_ZERO(&wfds); FD_SET(fd, &wfds);
+				struct timeval tv = {30, 0};
+				if (select(fd + 1, NULL, &wfds, NULL, &tv) > 0) continue;
+			}
 			return -1;
 		}
 		if (w == 0) return -1;
@@ -266,9 +299,10 @@ static int tcp_connect_blocking(const char* host, const char* port){
 	}
 
 	int s = -1;
+	int last_err = 0;
 	for (struct addrinfo* p = ai; p; p = p->ai_next){
 		s = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-		if (s < 0) continue;
+		if (s < 0) { last_err = errno; continue; }
 
 		struct timeval tv; tv.tv_sec = 8; tv.tv_usec = 0;
 		setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
@@ -284,14 +318,16 @@ static int tcp_connect_blocking(const char* host, const char* port){
 		if (connect(s, p->ai_addr, p->ai_addrlen) == 0){
 			break; // success
 		}
+		last_err = errno;
 		close(s); s = -1;
 	}
 	freeaddrinfo(ai);
 
 	gettimeofday(&t1, NULL);
 	if (s < 0){
-		LOGE("connect %s:%s failed: errno=%d (%s)", host, port, errno, strerror(errno));
+		LOGE("connect %s:%s failed: errno=%d (%s)", host, port, last_err, strerror(last_err));
 	}else{
+		set_keepalive(s);
 		LOGD("connect %s:%s ok in %ld ms", host, port, ms_since(&t0,&t1));
 	}
 	return s;
@@ -301,18 +337,40 @@ static int tcp_connect_blocking(const char* host, const char* port){
 // TLS ENVIRONMENT
 // ============================================================================
 
+static int read_verify_pref(void){
+	int verify = 1;
+	CFURLRef url = CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault,
+		(const UInt8*)PREFS_PATH, (CFIndex)strlen(PREFS_PATH), false);
+	CFReadStreamRef rs = url ? CFReadStreamCreateWithFile(kCFAllocatorDefault, url) : NULL;
+	if (rs && CFReadStreamOpen(rs)){
+		CFPropertyListRef pl = CFPropertyListCreateWithStream(kCFAllocatorDefault, rs, 0,
+			kCFPropertyListImmutable, NULL, NULL);
+		if (pl && CFGetTypeID(pl) == CFDictionaryGetTypeID()){
+			CFTypeRef v = CFDictionaryGetValue((CFDictionaryRef)pl, CFSTR("EnableCertificateValidation"));
+			if (v && CFGetTypeID(v) == CFBooleanGetTypeID()) verify = CFBooleanGetValue((CFBooleanRef)v);
+		}
+		if (pl) CFRelease(pl);
+		CFReadStreamClose(rs);
+	}
+	if (rs) CFRelease(rs);
+	if (url) CFRelease(url);
+	return verify;
+}
+
+static int locked_rng(void* p, unsigned char* out, size_t len){
+	pthread_mutex_lock(&g_rng_mu);
+	int r = mbedtls_ctr_drbg_random(p, out, len);
+	pthread_mutex_unlock(&g_rng_mu);
+	return r;
+}
+
 static int tls_env_init(tls_env_t* E){
 	mbedtls_entropy_init(&E->entropy);
 	mbedtls_ctr_drbg_init(&E->ctr);
 	mbedtls_ssl_config_init(&E->conf);
 	mbedtls_x509_crt_init(&E->ca_chain);
 
-	/* The preference bundle runs as mobile while this daemon runs as root. */
-	CFPropertyListRef validation = CFPreferencesCopyValue(CFSTR("EnableCertificateValidation"),
-		CFSTR("com.victorlobe.icloudmailfix"), kCFPreferencesAnyUser, kCFPreferencesAnyHost);
-	int verify = validation == NULL ||
-		(CFGetTypeID(validation) == CFBooleanGetTypeID() && CFBooleanGetValue((CFBooleanRef)validation));
-	if (validation) CFRelease(validation);
+	int verify = read_verify_pref();
 
 	int ret = 0;
 	if (!verify) {
@@ -359,8 +417,26 @@ static int tls_env_init(tls_env_t* E){
 
 	if (verify) mbedtls_ssl_conf_ca_chain(&E->conf, &E->ca_chain, NULL);
 	mbedtls_ssl_conf_authmode(&E->conf, verify ? MBEDTLS_SSL_VERIFY_REQUIRED : MBEDTLS_SSL_VERIFY_OPTIONAL);
-	mbedtls_ssl_conf_rng(&E->conf, mbedtls_ctr_drbg_random, &E->ctr);
+	mbedtls_ssl_conf_rng(&E->conf, locked_rng, &E->ctr);
 	return 0;
+}
+
+static tls_env_t* env_acquire(void){
+	pthread_mutex_lock(&g_env_mu);
+	tls_env_t* E = g_env;
+	E->refs++;
+	pthread_mutex_unlock(&g_env_mu);
+	return E;
+}
+
+static void env_release(tls_env_t* E){
+	pthread_mutex_lock(&g_env_mu);
+	int left = --E->refs;
+	pthread_mutex_unlock(&g_env_mu);
+	if (left == 0){
+		tls_env_free(E);
+		free(E);
+	}
 }
 
 static void tls_env_free(tls_env_t* E){
@@ -395,35 +471,64 @@ static int bio_recv(void* ctx, unsigned char* buf, size_t len){
 	return (int)r;
 }
 
-static int tls_wrap_fd(mbedtls_ssl_context* ssl, tls_env_t* E, int up_fd, const char* sni){
+static int tls_wrap_fd(mbedtls_ssl_context* ssl, tls_env_t* E, int up_fd, const char* sni, int client_fd){
 	set_nosigpipe(up_fd);
 	mbedtls_ssl_init(ssl);
 
 	int ret = mbedtls_ssl_setup(ssl, &E->conf);
-	if (ret != 0){ LOGE("ssl_setup: %d", ret); return ret; }
+	if (ret != 0){ LOGE("ssl_setup: %d", ret); mbedtls_ssl_free(ssl); return ret; }
 
 	if (sni && *sni){
 		ret = mbedtls_ssl_set_hostname(ssl, sni);
-		if (ret != 0){ LOGE("set_hostname: %d", ret); return ret; }
+		if (ret != 0){ LOGE("set_hostname: %d", ret); mbedtls_ssl_free(ssl); return ret; }
 	}
 
 	tls_bio_t* bio = (tls_bio_t*)calloc(1, sizeof(tls_bio_t));
-	if (!bio) return -1;
+	if (!bio){ mbedtls_ssl_free(ssl); return -1; }
 	bio->fd = up_fd;
 	mbedtls_ssl_set_bio(ssl, bio, bio_send, bio_recv, NULL);
 
+	int fl = fcntl(up_fd, F_GETFL, 0);
+	if (fl >= 0) fcntl(up_fd, F_SETFL, fl | O_NONBLOCK);
+
+	int watch_client = client_fd >= 0;
 	struct timeval t0, t1; gettimeofday(&t0,NULL);
 	while ((ret = mbedtls_ssl_handshake(ssl)) != 0){
-		if (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE){
-			struct timeval tv = {0, 20000}; select(0, NULL, NULL, NULL, &tv);
-			continue;
-		}
+		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) break;
+
 		gettimeofday(&t1,NULL);
-		LOGE("TLS handshake err %d (%s) after %ld ms", ret, tls_err(ret), ms_since(&t0,&t1));
+		long left_ms = TLS_HANDSHAKE_TIMEOUT_S * 1000L - ms_since(&t0,&t1);
+		if (left_ms <= 0){ ret = MBEDTLS_ERR_SSL_TIMEOUT; break; }
+
+		fd_set rfds, wfds; FD_ZERO(&rfds); FD_ZERO(&wfds);
+		if (ret == MBEDTLS_ERR_SSL_WANT_READ) FD_SET(up_fd, &rfds);
+		else                                  FD_SET(up_fd, &wfds);
+		if (watch_client) FD_SET(client_fd, &rfds);
+		int maxfd = (watch_client && client_fd > up_fd ? client_fd : up_fd) + 1;
+		struct timeval tv = { left_ms / 1000, (left_ms % 1000) * 1000 };
+		if (select(maxfd, &rfds, &wfds, NULL, &tv) < 0 && errno != EINTR){ ret = -1; break; }
+
+		if (watch_client && FD_ISSET(client_fd, &rfds)){
+			char c; ssize_t p = recv(client_fd, &c, 1, MSG_PEEK);
+			if (p == 0 || (p < 0 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)){
+				ret = MBEDTLS_ERR_NET_CONN_RESET;
+				break;
+			}
+			watch_client = 0;
+		}
+	}
+	if (fl >= 0) fcntl(up_fd, F_SETFL, fl);
+
+	gettimeofday(&t1,NULL);
+	if (ret != 0){
+		if (ret == MBEDTLS_ERR_NET_CONN_RESET)
+			LOGD("TLS handshake aborted after %ld ms: client gone", ms_since(&t0,&t1));
+		else
+			LOGE("TLS handshake err %d (%s) after %ld ms", ret, tls_err(ret), ms_since(&t0,&t1));
+		mbedtls_ssl_free(ssl);
 		free(bio);
 		return ret;
 	}
-	gettimeofday(&t1,NULL);
 	LOGD("TLS handshake ok in %ld ms", ms_since(&t0,&t1));
 	return 0;
 }
@@ -435,10 +540,9 @@ static int update_ca_bundle(tls_env_t* E){
 
 	mbedtls_ssl_context ssl;
 	memset(&ssl, 0, sizeof(ssl));
-	int ret = tls_wrap_fd(&ssl, E, fd, host);
+	int ret = tls_wrap_fd(&ssl, E, fd, host, -1);
 	if (ret != 0){
 		LOGE("CA update: TLS handshake failed: %d (%s)", ret, tls_err(ret));
-		mbedtls_ssl_free(&ssl);
 		close(fd);
 		return ret;
 	}
@@ -523,7 +627,7 @@ static void write_ca_update_status(const char *status){
 // PROXY LOOP
 // ============================================================================
 
-static void proxy_loop_plain_tls(int cs, mbedtls_ssl_context* ssl){
+static void proxy_loop_plain_tls(int cs, mbedtls_ssl_context* ssl, int idle_timeout_s){
 	// Get upstream FD from BIO
 	tls_bio_t* bio = (tls_bio_t*)ssl->p_bio;
 	int up = bio ? bio->fd : -1;
@@ -549,17 +653,19 @@ static void proxy_loop_plain_tls(int cs, mbedtls_ssl_context* ssl){
 
 		// LOGD("SMTP[PROXY]: loop %d, waiting for data on fds %d,%d", loop_count, cs, up);
 
-		struct timeval tv; tv.tv_sec = 30; tv.tv_usec = 0;
+		int pending = mbedtls_ssl_get_bytes_avail(ssl) > 0;
+		struct timeval tv; tv.tv_sec = pending ? 0 : idle_timeout_s; tv.tv_usec = 0;
 		int r = select(maxfd, &rfds, NULL, NULL, &tv);
 		if (r < 0){
 			if (errno == EINTR) continue;
 			LOGE("select: %s", strerror(errno));
 			break;
 		}
-		if (r == 0) {
-			LOGD("SMTP[PROXY]: select timeout after 30s, breaking");
+		if (r == 0 && !pending) {
+			LOGD("SMTP[PROXY]: select timeout after %ds, breaking", idle_timeout_s);
 			break;
 		}
+		if (pending) FD_SET(up, &rfds);
 		
 		// LOGD("SMTP[PROXY]: select returned %d, checking fds", r);
 		
@@ -595,27 +701,29 @@ static void proxy_loop_plain_tls(int cs, mbedtls_ssl_context* ssl){
 		// TLS -> Client
 		if (FD_ISSET(up, &rfds)){
 			// LOGD("SMTP[PROXY]: data available on upstream_fd=%d", up);
-			int n = mbedtls_ssl_read(ssl, ubuf, sizeof(ubuf));
-			// LOGD("SMTP[PROXY]: ssl_read returned %d", n);
-			if (n == MBEDTLS_ERR_SSL_WANT_READ || n == MBEDTLS_ERR_SSL_WANT_WRITE) { /* noop */ }
-			else if (n <= 0){ 
-				LOGD("SMTP[PROXY]: upstream disconnected (%d), breaking", n); 
-				break; 
-			}
-			else{
-				// Log first few bytes for debugging
-				if (n > 0) {
-					// SECURITY: could contain passwords - NEVER use in production
-					// LOGD("SMTP[PROXY]: upstream data: %.*s", n > 50 ? 50 : n, ubuf);
+			do {
+				int n = mbedtls_ssl_read(ssl, ubuf, sizeof(ubuf));
+				// LOGD("SMTP[PROXY]: ssl_read returned %d", n);
+				if (n == MBEDTLS_ERR_SSL_WANT_READ || n == MBEDTLS_ERR_SSL_WANT_WRITE) break;
+				else if (n <= 0){ 
+					LOGD("SMTP[PROXY]: upstream disconnected (%d), breaking", n); 
+					goto out; 
 				}
-				
-				if (send_all(cs, ubuf, (size_t)n) != 0){ 
-					// LOGD("SMTP[PROXY]: send_all to client failed, breaking"); 
-					break; 
+				else{
+					// Log first few bytes for debugging
+					if (n > 0) {
+						// SECURITY: could contain passwords - NEVER use in production
+						// LOGD("SMTP[PROXY]: upstream data: %.*s", n > 50 ? 50 : n, ubuf);
+					}
+					
+					if (send_all(cs, ubuf, (size_t)n) != 0){ 
+						// LOGD("SMTP[PROXY]: send_all to client failed, breaking"); 
+						goto out; 
+					}
+					up_to_client += (size_t)n;
+					// LOGD("SMTP[PROXY]: forwarded %d bytes from upstream to client", n);
 				}
-				up_to_client += (size_t)n;
-				// LOGD("SMTP[PROXY]: forwarded %d bytes from upstream to client", n);
-			}
+			} while (mbedtls_ssl_get_bytes_avail(ssl) > 0);
 		}
 	}
 out:
@@ -804,14 +912,13 @@ static void handle_imap(int cs, tls_env_t* env){
 
 	int up = tcp_connect_blocking(UP_IMAP_HOST, UP_IMAP_PORT);
 	if (up < 0){
-		LOGE("IMAP: connect %s:%s failed: errno=%d (%s)", UP_IMAP_HOST, UP_IMAP_PORT, errno, strerror(errno));
+		LOGE("IMAP: upstream connect failed");
 		goto out;
 	}
 
 	mbedtls_ssl_context ssl; memset(&ssl, 0, sizeof(ssl));
-	int hr = tls_wrap_fd(&ssl, env, up, UP_IMAP_HOST);
+	int hr = tls_wrap_fd(&ssl, env, up, UP_IMAP_HOST, cs);
 	if (hr != 0){
-		LOGE("IMAP: TLS handshake failed: %d (%s)", hr, tls_err(hr));
 		close(up);
 		goto out;
 	}
@@ -831,7 +938,7 @@ static void handle_imap(int cs, tls_env_t* env){
 	}
 
 	// Then transparent proxy (Client<->UpstreamTLS)
-	proxy_loop_plain_tls(cs, &ssl);
+	proxy_loop_plain_tls(cs, &ssl, IMAP_IDLE_TIMEOUT_S);
 
 	// Cleanup
 	mbedtls_ssl_close_notify(&ssl);
@@ -853,7 +960,7 @@ static void handle_smtp(int cs, tls_env_t* env){
 	// Connect to 587 + STARTTLS
 	int up_fd = tcp_connect_blocking(UP_SMTP_HOST, UP_SMTP_PORT);
 	if (up_fd < 0){
-		LOGE("connect %s:%s failed: errno=%d (%s)", UP_SMTP_HOST, UP_SMTP_PORT, errno, strerror(errno));
+		LOGE("SMTP: upstream connect failed");
 		goto out;
 	}
 	LOGD("SMTP: connected to 587; entering STARTTLS phase");
@@ -866,9 +973,8 @@ static void handle_smtp(int cs, tls_env_t* env){
 
 	// Negotiate upstream TLS immediately
 	mbedtls_ssl_context ssl; memset(&ssl, 0, sizeof(ssl));
-	int hr = tls_wrap_fd(&ssl, env, up_fd, UP_SMTP_HOST);
+	int hr = tls_wrap_fd(&ssl, env, up_fd, UP_SMTP_HOST, cs);
 	if (hr != 0){
-		LOGE("SMTP: TLS handshake fail: %d (%s)", hr, tls_err(hr));
 		close(up_fd);
 		goto out;
 	}
@@ -886,7 +992,7 @@ static void handle_smtp(int cs, tls_env_t* env){
 
 	LOGD("SMTP: entering proxy loop (client plain <-> upstream TLS)...");
 	LOGD("SMTP: client socket=%d, upstream socket=%d", cs, up_fd);
-	proxy_loop_plain_tls(cs, &ssl);
+	proxy_loop_plain_tls(cs, &ssl, SMTP_IDLE_TIMEOUT_S);
 
 	// Cleanup
 	mbedtls_ssl_close_notify(&ssl);
@@ -915,39 +1021,96 @@ static void* serve_thread_impl(void* arg){
 			continue;
 		}
 		set_nosigpipe(cs);
-		if (a->is_imap) handle_imap(cs, a->env);
-		else            handle_smtp(cs, a->env);
+		client_args_t* c = (client_args_t*)malloc(sizeof(*c));
+		pthread_t th;
+		if (c) { c->cs = cs; c->is_imap = a->is_imap; }
+		if (!c || pthread_create(&th, NULL, client_thread, c) != 0){
+			LOGE("cannot start client thread");
+			free(c);
+			close(cs);
+			continue;
+		}
+		pthread_detach(th);
 	}
 	return NULL;
 }
 
+static void* client_thread(void* arg){
+	client_args_t* c = (client_args_t*)arg;
+	tls_env_t* env = env_acquire();
+	if (c->is_imap) handle_imap(c->cs, env);
+	else            handle_smtp(c->cs, env);
+	env_release(env);
+	free(c);
+	return NULL;
+}
+
+static long long config_signature(void){
+	static const char* const paths[] = { PREFS_PATH, CA_OVERRIDE_PATH, CA_BUNDLE_PATH };
+	long long sig = 0;
+	for (size_t i = 0; i < sizeof(paths)/sizeof(paths[0]); ++i){
+		struct stat st;
+		long long v = stat(paths[i], &st) == 0 ? ((long long)st.st_mtime << 20) ^ (long long)st.st_size : -1;
+		sig = sig * 1000003LL + v;
+	}
+	return sig;
+}
+
+static void rotate_log_if_needed(void){
+	struct stat st;
+	if (fstat(STDERR_FILENO, &st) != 0 || st.st_size < LOG_MAX_BYTES) return;
+	rename(LOG_PATH, LOG_PATH ".1");
+	int fd = open(LOG_PATH, O_WRONLY | O_CREAT | O_APPEND, 0644);
+	if (fd >= 0){
+		dup2(fd, STDERR_FILENO);
+		close(fd);
+	}
+	LOGI("log rotated (previous log in %s.1)", LOG_PATH);
+}
+
 static void* hb(void* arg){
-	tls_env_t* env = (tls_env_t*)arg;
+	(void)arg;
+	long long applied_sig = config_signature();
+	unsigned tick = 0;
 	while (g_run){
-		LOGD("hb: alive pid=%d imap=%d smtp=%d", getpid(), g_imap_clients, g_smtp_clients);
+		if (tick++ % HB_LOG_EVERY == 0)
+			LOGD("hb: alive pid=%d imap=%d smtp=%d", getpid(), g_imap_clients, g_smtp_clients);
 		sleep(20);
-		/* Preferences and the downloaded override are picked up between sessions. */
-		if (g_run && g_imap_clients == 0 && g_smtp_clients == 0) {
-			if (access(CA_UPDATE_REQUEST_PATH, R_OK) == 0) {
-				unlink(CA_UPDATE_REQUEST_PATH);
-				write_ca_update_status("pending\n");
-				CFPropertyListRef validation = CFPreferencesCopyValue(CFSTR("EnableCertificateValidation"),
-					CFSTR("com.victorlobe.icloudmailfix"), kCFPreferencesAnyUser, kCFPreferencesAnyHost);
-				int verify = validation == NULL ||
-					(CFGetTypeID(validation) == CFBooleanGetTypeID() && CFBooleanGetValue((CFBooleanRef)validation));
-				if (validation) CFRelease(validation);
-				int update_ret = verify ? update_ca_bundle(env) : -1;
-				if (!verify) LOGI("CA update skipped because TLS certificate validation is disabled");
-				write_ca_update_status(update_ret == 0 ? "success\n" : "failure\n");
+		if (!g_run) break;
+		rotate_log_if_needed();
+
+		int force = 0;
+		if (access(CA_UPDATE_REQUEST_PATH, R_OK) == 0) {
+			unlink(CA_UPDATE_REQUEST_PATH);
+			write_ca_update_status("pending\n");
+			int verify = read_verify_pref();
+			int update_ret = -1;
+			if (verify) {
+				tls_env_t* env = env_acquire();
+				update_ret = update_ca_bundle(env);
+				env_release(env);
 			}
-			tls_env_t fresh;
-			if (tls_env_init(&fresh) == 0) {
-				tls_env_free(env);
-				*env = fresh;
-				LOGI("TLS configuration reloaded");
-			} else {
-				tls_env_free(&fresh);
-			}
+			if (!verify) LOGI("CA update skipped because TLS certificate validation is disabled");
+			write_ca_update_status(update_ret == 0 ? "success\n" : "failure\n");
+			force = 1;
+		}
+
+		long long sig = config_signature();
+		if (!force && sig == applied_sig) continue;
+
+		tls_env_t* fresh = (tls_env_t*)calloc(1, sizeof(*fresh));
+		if (fresh && tls_env_init(fresh) == 0) {
+			fresh->refs = 1;
+			pthread_mutex_lock(&g_env_mu);
+			tls_env_t* old = g_env;
+			g_env = fresh;
+			pthread_mutex_unlock(&g_env_mu);
+			env_release(old);
+			applied_sig = sig;
+			LOGI("TLS configuration reloaded");
+		} else if (fresh) {
+			tls_env_free(fresh);
+			free(fresh);
 		}
 	}
 	return NULL;
@@ -975,29 +1138,31 @@ int main(int argc, char** argv){
 
 	LOGI("start: iCloudMailFixd pid=%d", getpid());
 
-	tls_env_t env;
-	if (tls_env_init(&env) != 0){
+	tls_env_t* env = (tls_env_t*)calloc(1, sizeof(*env));
+	if (!env || tls_env_init(env) != 0){
 		LOGE("tls_env_init failed");
 		return 2;
 	}
+	env->refs = 1;
+	g_env = env;
 
 	int ls_imap = tcp_listen(LISTEN_IP, LISTEN_IMAP);
 	int ls_smtp = tcp_listen(LISTEN_IP, LISTEN_SMTP);
 	if (ls_imap < 0 || ls_smtp < 0){
 		LOGE("listen failed");
-		tls_env_free(&env);
+		env_release(g_env);
 		return 0;
 	}
 	LOGI("listening on %s:%d", LISTEN_IP, LISTEN_IMAP);
 	LOGI("listening on %s:%d", LISTEN_IP, LISTEN_SMTP);
 
-	serve_args_t a_imap = { ls_imap, 1, &env };
-	serve_args_t a_smtp = { ls_smtp, 0, &env };
+	serve_args_t a_imap = { ls_imap, 1 };
+	serve_args_t a_smtp = { ls_smtp, 0 };
 
 	pthread_t th_imap, th_smtp, th_hb;
 	pthread_create(&th_imap, NULL, serve_thread_impl, &a_imap);
 	pthread_create(&th_smtp, NULL, serve_thread_impl, &a_smtp);
-	pthread_create(&th_hb,   NULL, hb,           &env);
+	pthread_create(&th_hb,   NULL, hb,           NULL);
 
 	while (g_run) sleep(1);
 
@@ -1007,7 +1172,6 @@ int main(int argc, char** argv){
 	pthread_cancel(th_imap); pthread_cancel(th_smtp); pthread_cancel(th_hb);
 	pthread_join(th_imap, NULL); pthread_join(th_smtp, NULL); pthread_join(th_hb, NULL);
 
-	tls_env_free(&env);
 	LOGI("stopped");
 	return 0;
 }

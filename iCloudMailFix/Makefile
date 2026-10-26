@@ -1,6 +1,22 @@
 ARCHS = armv7 arm64
 TARGET := iphone:7.1
 
+
+XCODE26_APP ?= /Applications/Xcode 26.6.app
+XCODE26_LINK := $(CURDIR)/.theos/Xcode26.app
+$(shell mkdir -p "$(CURDIR)/.theos" && ln -sfn "$(XCODE26_APP)" "$(XCODE26_LINK)")
+export DEVELOPER_DIR := $(XCODE26_LINK)/Contents/Developer
+MAKE := $(DEVELOPER_DIR)/usr/bin/make
+_ICMF_TC := $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/bin
+TARGET_CC := $(_ICMF_TC)/clang
+TARGET_CXX := $(_ICMF_TC)/clang++
+TARGET_LD := $(_ICMF_TC)/clang
+TARGET_LIPO := $(_ICMF_TC)/lipo
+TARGET_STRIP := $(_ICMF_TC)/strip
+TARGET_DSYMUTIL := $(_ICMF_TC)/dsymutil
+TARGET_CODESIGN_ALLOCATE := $(_ICMF_TC)/codesign_allocate
+export TARGET_CC TARGET_CXX TARGET_LD TARGET_LIPO TARGET_STRIP TARGET_DSYMUTIL TARGET_CODESIGN_ALLOCATE
+
 MAKEFLAGS += --output-sync=none
 include $(THEOS)/makefiles/common.mk
 
@@ -22,6 +38,7 @@ MBEDTLS_SRCS = $(wildcard $(MBEDTLS_DIR)/library/*.c)
 
 iCloudMailFixd_FILES  = src/iCloudMailFixd.c $(MBEDTLS_SRCS)
 iCloudMailFixd_CFLAGS += -I$(MBEDTLS_DIR)/include -DMBEDTLS_CONFIG_FILE='<mbedtls/config.h>'
+iCloudMailFixd_CFLAGS += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0
 iCloudMailFixd_FRAMEWORKS = CoreFoundation
 
 include $(THEOS_MAKE_PATH)/tool.mk
