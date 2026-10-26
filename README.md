@@ -110,6 +110,18 @@ If you experience problems, check that the following ports are configured:
 
 # 📝 Changelog
 
+### v2.0.2
+- Fixed mail not loading or "server not responding" errors with large messages and mailboxes
+- Fixed connections being dropped after 30 seconds of inactivity, which broke push
+- Fixed Mail hanging while push was active: multiple connections are now handled in parallel
+- Fixed the "Certificate Validation" setting
+- Dead connections after a network change or sleep are now detected and replaced automatically
+- Improved stability: connection timeouts, memory leak fixes and safer configuration reloads
+- Reduced battery and storage use: config is only reloaded when it changes and the log is rotated at 5 MB
+
+### v2.0.1
+- Fix Settings icon on non Retina devices.
+
 ### v2.0.0
 - Added support for syncing iCloud Notes
 - Added support for the Sparrow mail client
@@ -150,6 +162,8 @@ iOS 6 Mail App (Plaintext) ↔ Local Proxy (127.0.0.1) ↔ iCloud Servers (TLS)
 - Listens on `127.0.0.1:143` (IMAP) and `127.0.0.1:587` (SMTP)
 - Establishes TLS connections to real iCloud servers
 - Proxies data transparently between client and server
+- Handles every connection in its own thread, so push (IMAP IDLE) and fetching run in parallel
+- Uses TCP keepalive to detect connections that died after a network change or sleep
 
 ## 🛑 Security Notes
 
@@ -160,23 +174,24 @@ iOS 6 Mail App (Plaintext) ↔ Local Proxy (127.0.0.1) ↔ iCloud Servers (TLS)
 - ⚠️ **TLS Validation**: Certificate validation is enabled by default and uses the CA bundle installed by iCloudMailFix. It can be disabled in Settings → iCloud Mail Fix for compatibility troubleshooting.
 
 ### TLS Security
-The tweak uses `MBEDTLS_SSL_VERIFY_OPTIONAL` for iOS 6 compatibility. The CA bundle can be updated from Settings → iCloud Mail Fix → Update CA certificate bundle. The downloaded bundle is validated before it replaces the active local override.
+With certificate validation enabled, the daemon uses `MBEDTLS_SSL_VERIFY_REQUIRED` and rejects servers whose certificate does not validate against the CA bundle. When validation is disabled in Settings, it falls back to `MBEDTLS_SSL_VERIFY_OPTIONAL`. The CA bundle can be updated from Settings → iCloud Mail Fix → Update CA certificate bundle. The downloaded bundle is validated before it replaces the active local override.
 
 ### Supported Protocols
 - **IMAP**: `imap.mail.me.com:993` (TLS) → `127.0.0.1:143` (Plaintext)
 - **SMTP**: `smtp.mail.me.com:587` (STARTTLS) → `127.0.0.1:587` (Plaintext)
 
 ### TLS Configuration
-- **Library**: mbedTLS 3.x
-- **Validation**: `MBEDTLS_SSL_VERIFY_OPTIONAL`
+- **Library**: mbedTLS 2.28
+- **Validation**: `MBEDTLS_SSL_VERIFY_REQUIRED` (`MBEDTLS_SSL_VERIFY_OPTIONAL` when disabled in Settings)
 - **Default**: Certificate validation enabled
+- **Handshake timeout**: 30 seconds
 - **Ciphers**: Default mbedTLS preset
 - **SNI**: Enabled for proper hostname validation
 
 ## 📊 Logs and Debugging
 
 ### Log Files
-- **Daemon Logs (Main Log)**: `/var/log/iCloudMailFixd.err`
+- **Daemon Logs (Main Log)**: `/var/log/iCloudMailFixd.err` (rotated at 5 MB, the previous log is kept as `/var/log/iCloudMailFixd.err.1`)
 - **Hook Logs (isn´t really used)**: `/var/log/iCloudMailFix-hook.log`
 - **Package Logs**: `/var/log/iCloudMailFixd.pkg.log`
 
