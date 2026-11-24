@@ -110,6 +110,10 @@ If you experience problems, check that the following ports are configured:
 
 # 📝 Changelog
 
+### v2.0.3
+
+- Added a package icon.
+
 ### v2.0.2
 - Fixed mail not loading or "server not responding" errors with large messages and mailboxes
 - Fixed connections being dropped after 30 seconds of inactivity, which broke push
